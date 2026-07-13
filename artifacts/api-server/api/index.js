@@ -20501,27 +20501,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module.exports = Router13;
+    module.exports = Router14;
     module.exports.Route = Route;
-    function Router13(options) {
-      if (!(this instanceof Router13)) {
-        return new Router13(options);
+    function Router14(options) {
+      if (!(this instanceof Router14)) {
+        return new Router14(options);
       }
       const opts = options || {};
-      function router13(req, res, next) {
-        router13.handle(req, res, next);
+      function router14(req, res, next) {
+        router14.handle(req, res, next);
       }
-      Object.setPrototypeOf(router13, this);
-      router13.caseSensitive = opts.caseSensitive;
-      router13.mergeParams = opts.mergeParams;
-      router13.params = {};
-      router13.strict = opts.strict;
-      router13.stack = [];
-      return router13;
+      Object.setPrototypeOf(router14, this);
+      router14.caseSensitive = opts.caseSensitive;
+      router14.mergeParams = opts.mergeParams;
+      router14.params = {};
+      router14.strict = opts.strict;
+      router14.stack = [];
+      return router14;
     }
-    Router13.prototype = function() {
+    Router14.prototype = function() {
     };
-    Router13.prototype.param = function param(name, fn) {
+    Router14.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -20541,7 +20541,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router13.prototype.handle = function handle(req, res, callback) {
+    Router14.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -20668,7 +20668,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router13.prototype.use = function use(handler) {
+    Router14.prototype.use = function use(handler) {
       let offset = 0;
       let path4 = "/";
       if (typeof handler !== "function") {
@@ -20701,7 +20701,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router13.prototype.route = function route(path4) {
+    Router14.prototype.route = function route(path4) {
       const route2 = new Route(path4);
       const layer = new Layer(path4, {
         sensitive: this.caseSensitive,
@@ -20716,7 +20716,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router13.prototype[method] = function(path4) {
+      Router14.prototype[method] = function(path4) {
         const route = this.route(path4);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -20899,13 +20899,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve = __require("node:path").resolve;
     var once = require_once();
-    var Router13 = require_router();
+    var Router14 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports = module.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init() {
-      var router13 = null;
+      var router14 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -20914,13 +20914,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router13 === null) {
-            router13 = new Router13({
+          if (router14 === null) {
+            router14 = new Router14({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router13;
+          return router14;
         }
       });
     };
@@ -20991,15 +20991,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router13 = this.router;
+      var router14 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router13.use(path4, fn2);
+          return router14.use(path4, fn2);
         }
         debug(".use app under %s", path4);
         fn2.mountpath = path4;
         fn2.parent = this;
-        router13.use(path4, function mounted_app(req, res, next) {
+        router14.use(path4, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -23572,7 +23572,7 @@ var require_express = __commonJS({
     var EventEmitter = __require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router13 = require_router();
+    var Router14 = require_router();
     var req = require_request();
     var res = require_response();
     exports = module.exports = createApplication;
@@ -23594,8 +23594,8 @@ var require_express = __commonJS({
     exports.application = proto;
     exports.request = req;
     exports.response = res;
-    exports.Route = Router13.Route;
-    exports.Router = Router13;
+    exports.Route = Router14.Route;
+    exports.Router = Router14;
     exports.json = bodyParser.json;
     exports.raw = bodyParser.raw;
     exports.static = require_serve_static();
@@ -46931,13 +46931,13 @@ var require_multer = __commonJS({
 });
 
 // src/app.ts
-var import_express13 = __toESM(require_express2(), 1);
+var import_express14 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 var import_cookie_parser = __toESM(require_cookie_parser(), 1);
 
 // src/routes/index.ts
-var import_express12 = __toESM(require_express2(), 1);
+var import_express13 = __toESM(require_express2(), 1);
 
 // src/routes/health.ts
 var import_express = __toESM(require_express2(), 1);
@@ -50840,7 +50840,7 @@ var LoginResponse = objectType({
   "id": numberType(),
   "username": stringType(),
   "email": stringType(),
-  "role": enumType(["super_master", "master", "client_admin", "operator"]),
+  "role": enumType(["super_master", "master", "admin", "client_admin", "operator"]),
   "companyId": numberType().nullable(),
   "companyName": stringType().nullable(),
   "companyUrl": stringType().nullish(),
@@ -50860,7 +50860,7 @@ var GetCurrentUserResponse = objectType({
   "id": numberType(),
   "username": stringType(),
   "email": stringType(),
-  "role": enumType(["super_master", "master", "client_admin", "operator"]),
+  "role": enumType(["super_master", "master", "admin", "client_admin", "operator"]),
   "companyId": numberType().nullable(),
   "companyName": stringType().nullable(),
   "companyUrl": stringType().nullish(),
@@ -50961,12 +50961,48 @@ var RegenerateCompanyApiKeyResponse = objectType({
 var DeleteCompanyParams = objectType({
   "id": coerce.number()
 });
+var UpdateCompanyParams = objectType({
+  "id": coerce.number()
+});
+var updateCompanyBodyGstinRegExp = new RegExp("^[0-9]{2}[a-zA-Z0-9]{10}[a-zA-Z0-9][zZ][a-zA-Z0-9]?$");
+var UpdateCompanyBody = objectType({
+  "name": stringType(),
+  "email": stringType(),
+  "address": stringType(),
+  "gstin": stringType().regex(updateCompanyBodyGstinRegExp).nullish(),
+  "companyUrl": stringType().nullish(),
+  "pan": stringType().nullish(),
+  "cin": stringType().nullish(),
+  "msmeRegistrationNo": stringType().nullish(),
+  "fssaiLicenseNo": stringType().nullish(),
+  "drugLicenseNo": stringType().nullish(),
+  "iecCode": stringType().nullish(),
+  "companyPrefix": stringType().nullish()
+});
+var updateCompanyResponseGstinRegExp = new RegExp("^[0-9]{2}[a-zA-Z0-9]{10}[a-zA-Z0-9][zZ][a-zA-Z0-9]?$");
+var UpdateCompanyResponse = objectType({
+  "id": numberType(),
+  "name": stringType(),
+  "email": stringType(),
+  "address": stringType(),
+  "gstin": stringType().regex(updateCompanyResponseGstinRegExp).nullable(),
+  "companyUrl": stringType().nullish(),
+  "apiKey": stringType().nullish(),
+  "pan": stringType().nullish(),
+  "cin": stringType().nullish(),
+  "msmeRegistrationNo": stringType().nullish(),
+  "fssaiLicenseNo": stringType().nullish(),
+  "drugLicenseNo": stringType().nullish(),
+  "iecCode": stringType().nullish(),
+  "companyPrefix": stringType().nullish(),
+  "createdAt": coerce.date()
+});
 var ListUsersResponseItem = objectType({
   "id": numberType(),
   "username": stringType(),
   "email": stringType(),
   "phone": stringType().nullable(),
-  "role": enumType(["super_master", "master", "client_admin", "operator"]),
+  "role": enumType(["super_master", "master", "admin", "client_admin", "operator"]),
   "companyId": numberType().nullable(),
   "companyName": stringType().nullable(),
   "isActive": booleanType(),
@@ -50979,7 +51015,7 @@ var CreateUserBody = objectType({
   "email": stringType(),
   "phone": stringType().nullish(),
   "password": stringType(),
-  "role": enumType(["super_master", "master", "client_admin", "operator"]),
+  "role": enumType(["super_master", "master", "admin", "client_admin", "operator"]),
   "companyId": numberType().nullish(),
   "isActive": booleanType().optional(),
   "enabledModules": stringType().optional()
@@ -50993,17 +51029,18 @@ var UpdateUserParams = objectType({
 var UpdateUserBody = objectType({
   "email": stringType().optional(),
   "phone": stringType().nullish(),
-  "role": enumType(["super_master", "master", "client_admin", "operator"]).optional(),
+  "role": enumType(["super_master", "master", "admin", "client_admin", "operator"]).optional(),
   "isActive": booleanType().optional(),
   "enabledModules": stringType().optional(),
-  "password": stringType().optional()
+  "password": stringType().optional(),
+  "companyId": numberType().nullish()
 });
 var UpdateUserResponse = objectType({
   "id": numberType(),
   "username": stringType(),
   "email": stringType(),
   "phone": stringType().nullable(),
-  "role": enumType(["super_master", "master", "client_admin", "operator"]),
+  "role": enumType(["super_master", "master", "admin", "client_admin", "operator"]),
   "companyId": numberType().nullable(),
   "companyName": stringType().nullable(),
   "isActive": booleanType(),
@@ -58590,6 +58627,7 @@ __export(schema_exports, {
   locationsTable: () => locationsTable,
   passkeysTable: () => passkeysTable,
   productsTable: () => productsTable,
+  systemConfigsTable: () => systemConfigsTable,
   usersTable: () => usersTable
 });
 
@@ -58738,6 +58776,12 @@ var customerScansTable = sqliteTable("customer_scans", {
   createdAt: text("created_at").notNull().$defaultFn(() => (/* @__PURE__ */ new Date()).toISOString())
 });
 
+// ../../lib/db/src/schema/systemConfigs.ts
+var systemConfigsTable = sqliteTable("system_configs", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull()
+});
+
 // ../../lib/db/src/index.ts
 var dotenv = __toESM(require_main(), 1);
 import path from "path";
@@ -58752,8 +58796,8 @@ dotenv.config({ path: path.resolve(resolvedDirname, "../../../.env") });
 dotenv.config({ path: path.resolve(resolvedDirname, "../../.env") });
 dotenv.config({ path: path.resolve(resolvedDirname, "../.env") });
 dotenv.config();
-var dbUrl = process.env.DATABASE_URL;
-var dbAuthToken = process.env.DATABASE_AUTH_TOKEN;
+var dbUrl = "libsql://temp-db-tracely-tag-luphonix.aws-ap-south-1.turso.io";
+var dbAuthToken = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODM0MjEwOTcsImlkIjoiMDE5ZjNjMmQtYjAwMS03MGU4LWI0ZmYtM2NlNTU4YzdiODJlIiwia2lkIjoiTDh0aGtVbkRscHhEZ1c0bmRzRldQcTNXOFhZdFJGcnpBREE0QUZ0S2dmSSIsInJpZCI6Ijg5ZDBjOGNhLWM0NTItNDAyMi05M2FjLTY4NmNhZmZlM2RkZiJ9.z3Tz6pwrMrGRMgDcpltwf6iwWF3NpvmpjWhKUP_SLUh_HN_N4k0JAfk1Uymxc7DxbiEMCMZORHVkWFfL5P5TAg";
 if (!dbUrl) {
   const dbFile = path.resolve(resolvedDirname, "..", "traclytag.db");
   const isVercel = !!process.env.VERCEL || process.env.NODE_ENV === "production";
@@ -59109,8 +59153,149 @@ router2.get("/auth/me", async (req, res) => {
     subscriptionExpiresAt
   });
 });
+router2.get("/auth/config", async (req, res) => {
+  res.json({
+    googleClientId: process.env.GOOGLE_CLIENT_ID || ""
+  });
+});
+router2.post("/auth/sso/google", async (req, res) => {
+  const { code } = req.body;
+  if (!code) {
+    res.status(400).json({ error: "Authorization code is required" });
+    return;
+  }
+  const clientId = process.env.GOOGLE_CLIENT_ID || "";
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+  if (!clientId || !clientSecret) {
+    res.status(500).json({ error: "Google OAuth is not configured on the server" });
+    return;
+  }
+  try {
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: "postmessage",
+        grant_type: "authorization_code"
+      })
+    });
+    if (!tokenRes.ok) {
+      const errBody = await tokenRes.text();
+      req.log.error({ errBody }, "Google token exchange failed");
+      res.status(400).json({ error: "Failed to exchange authorization code with Google" });
+      return;
+    }
+    const { id_token } = await tokenRes.json();
+    if (!id_token) {
+      res.status(400).json({ error: "No ID token returned from Google" });
+      return;
+    }
+    const parts = id_token.split(".");
+    if (parts.length !== 3) {
+      res.status(400).json({ error: "Invalid ID token format" });
+      return;
+    }
+    const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
+    const { email, email_verified, name } = payload;
+    if (!email) {
+      res.status(400).json({ error: "Google account does not have an email address" });
+      return;
+    }
+    if (email_verified !== true && email_verified !== "true") {
+      res.status(400).json({ error: "Google account email is not verified" });
+      return;
+    }
+    let [user2] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+    let resolvedCompanyName = null;
+    let subscriptionPlan = null;
+    let subscriptionStatus = null;
+    let subscriptionExpiresAt = null;
+    if (!user2) {
+      let username = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "_");
+      let suffix = 1;
+      const baseUsername = username;
+      while (true) {
+        const [existing] = await db.select().from(usersTable).where(eq(usersTable.username, username));
+        if (!existing) break;
+        username = `${baseUsername}_${suffix}`;
+        suffix++;
+      }
+      const targetCompanyName = `${name || username}'s Organization`;
+      const targetWebsite = `https://${username.toLowerCase()}.tracelytag.com`;
+      const [company] = await db.insert(companiesTable).values({
+        name: targetCompanyName,
+        email,
+        address: targetWebsite,
+        gstin: null
+      }).returning();
+      if (!company) {
+        throw new Error("Failed to create company");
+      }
+      resolvedCompanyName = company.name;
+      subscriptionPlan = company.subscriptionPlan;
+      subscriptionStatus = company.subscriptionStatus;
+      subscriptionExpiresAt = company.subscriptionExpiresAt;
+      const randomPassword = crypto2.randomBytes(16).toString("hex");
+      const passwordHash = await bcryptjs_default.hash(randomPassword, 10);
+      const [newUser] = await db.insert(usersTable).values({
+        username,
+        email,
+        phone: null,
+        passwordHash,
+        role: "client_admin",
+        companyId: company.id
+      }).returning();
+      if (!newUser) {
+        throw new Error("Failed to create user");
+      }
+      user2 = newUser;
+    } else {
+      if (user2.companyId) {
+        const [c] = await db.select({
+          name: companiesTable.name,
+          subscriptionPlan: companiesTable.subscriptionPlan,
+          subscriptionStatus: companiesTable.subscriptionStatus,
+          subscriptionExpiresAt: companiesTable.subscriptionExpiresAt
+        }).from(companiesTable).where(eq(companiesTable.id, user2.companyId));
+        resolvedCompanyName = c?.name ?? null;
+        subscriptionPlan = c?.subscriptionPlan ?? null;
+        subscriptionStatus = c?.subscriptionStatus ?? null;
+        subscriptionExpiresAt = c?.subscriptionExpiresAt ?? null;
+      }
+    }
+    const isProduction2 = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+    res.cookie("connect.sid", user2.id.toString(), {
+      signed: true,
+      httpOnly: true,
+      maxAge: 1e3 * 60 * 60 * 24 * 7,
+      secure: isProduction2,
+      sameSite: "lax"
+    });
+    res.json({
+      id: user2.id,
+      username: user2.username,
+      email: user2.email,
+      role: user2.role,
+      companyId: user2.companyId,
+      companyName: resolvedCompanyName,
+      subscriptionPlan,
+      subscriptionStatus,
+      subscriptionExpiresAt
+    });
+  } catch (err) {
+    req.log.error({ err }, "Google SSO authentication failed");
+    res.status(500).json({ error: "Google SSO authentication failed" });
+  }
+});
 router2.post("/auth/sso", async (req, res) => {
   const { provider, email, username, name, companyName, companyWebsiteUrl } = req.body;
+  if (provider === "Google") {
+    res.status(400).json({ error: "Google SSO must use the secure /auth/sso/google endpoint" });
+    return;
+  }
   if (!email || !username) {
     res.status(400).json({ error: "Email and username are required" });
     return;
@@ -59632,7 +59817,7 @@ var import_express3 = __toESM(require_express2(), 1);
 
 // src/lib/session.ts
 var import_express_session = __toESM(require_express_session(), 1);
-var secret = "traclytag-production-secure-session-key-xyz-987654321";
+var secret = "traclytag-production-secure-session-key-xyz-987654987";
 var sessionMiddleware = (0, import_express_session.default)({
   secret,
   resave: false,
@@ -59771,7 +59956,7 @@ router3.get("/companies", async (_req, res) => {
 });
 router3.post(
   "/companies",
-  requireRole("master"),
+  requireRole("master", "super_master", "admin"),
   async (req, res) => {
     const parsed = CreateCompanyBody.safeParse(req.body);
     if (!parsed.success) {
@@ -59795,9 +59980,45 @@ router3.post(
     res.status(201).json(row);
   }
 );
+router3.put(
+  "/companies/:id",
+  requireRole("master", "super_master", "admin"),
+  async (req, res) => {
+    const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const id = parseInt(raw ?? "", 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const parsed = CreateCompanyBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const [updated] = await db.update(companiesTable).set({
+      name: parsed.data.name,
+      email: parsed.data.email,
+      address: parsed.data.address,
+      gstin: parsed.data.gstin !== void 0 ? parsed.data.gstin || null : void 0,
+      companyUrl: parsed.data.companyUrl !== void 0 ? parsed.data.companyUrl || null : void 0,
+      pan: parsed.data.pan !== void 0 ? parsed.data.pan || null : void 0,
+      cin: parsed.data.cin !== void 0 ? parsed.data.cin || null : void 0,
+      msmeRegistrationNo: parsed.data.msmeRegistrationNo !== void 0 ? parsed.data.msmeRegistrationNo || null : void 0,
+      fssaiLicenseNo: parsed.data.fssaiLicenseNo !== void 0 ? parsed.data.fssaiLicenseNo || null : void 0,
+      drugLicenseNo: parsed.data.drugLicenseNo !== void 0 ? parsed.data.drugLicenseNo || null : void 0,
+      iecCode: parsed.data.iecCode !== void 0 ? parsed.data.iecCode || null : void 0,
+      companyPrefix: parsed.data.companyPrefix !== void 0 ? parsed.data.companyPrefix || null : void 0
+    }).where(eq(companiesTable.id, id)).returning();
+    if (!updated) {
+      res.status(404).json({ error: "Company not found" });
+      return;
+    }
+    res.json(updated);
+  }
+);
 router3.delete(
   "/companies/:id",
-  requireRole("master"),
+  requireRole("master", "super_master", "admin"),
   async (req, res) => {
     const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(raw ?? "", 10);
@@ -59814,6 +60035,56 @@ var companies_default = router3;
 // src/routes/users.ts
 var import_express4 = __toESM(require_express2(), 1);
 var router4 = (0, import_express4.Router)();
+router4.put("/users/profile", requireAuth, async (req, res) => {
+  const { email, phone, currentPassword, password } = req.body;
+  if (!email) {
+    res.status(400).json({ error: "Email is required" });
+    return;
+  }
+  try {
+    const [user2] = await db.select().from(usersTable).where(eq(usersTable.id, req.user.id));
+    if (!user2) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    const updateData = {
+      email,
+      phone: phone ?? null
+    };
+    if (password && password.trim().length > 0) {
+      if (!currentPassword || currentPassword.trim().length === 0) {
+        res.status(400).json({ error: "Current password is required to set a new password" });
+        return;
+      }
+      const isMatch = await bcryptjs_default.compare(currentPassword, user2.passwordHash);
+      if (!isMatch) {
+        res.status(400).json({ error: "Incorrect current password" });
+        return;
+      }
+      if (password.length < 6) {
+        res.status(400).json({ error: "Password must be at least 6 characters long" });
+        return;
+      }
+      updateData.passwordHash = await bcryptjs_default.hash(password, 10);
+    }
+    const [updatedUser] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, req.user.id)).returning();
+    if (!updatedUser) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json({
+      id: updatedUser.id,
+      username: updatedUser.username,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      role: updatedUser.role,
+      companyId: updatedUser.companyId
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to update profile");
+    res.status(500).json({ error: err.message || "Failed to update profile" });
+  }
+});
 router4.use("/users", requireAuth, requireModule("users"));
 router4.get("/users", async (req, res) => {
   const rows = await db.select({
@@ -59863,7 +60134,7 @@ router4.post("/users", async (req, res) => {
       role: parsed.data.role,
       companyId,
       isActive: parsed.data.isActive ?? true,
-      enabledModules: parsed.data.enabledModules ?? "dashboard,products,batches,codes,locations,reports,users,generate_codes,mapping_code,customer_scan,summary"
+      enabledModules: parsed.data.enabledModules ?? "dashboard,companies,products,batches,codes,locations,reports,users,generate_codes,mapping_code,customer_scan,summary"
     }).returning();
     let companyName = null;
     if (row.companyId) {
@@ -59931,6 +60202,7 @@ router4.put("/users/:id", async (req, res) => {
     if (parsed.data.role !== void 0) updateData.role = parsed.data.role;
     if (parsed.data.isActive !== void 0) updateData.isActive = parsed.data.isActive;
     if (parsed.data.enabledModules !== void 0) updateData.enabledModules = parsed.data.enabledModules;
+    if (parsed.data.companyId !== void 0) updateData.companyId = parsed.data.companyId ?? null;
     if (parsed.data.password && parsed.data.password.trim().length > 0) {
       if (parsed.data.password.length < 6) {
         res.status(400).json({ error: "Password must be at least 6 characters long" });
@@ -59998,42 +60270,6 @@ router4.delete("/users/:id", async (req, res) => {
   await db.delete(usersTable).where(eq(usersTable.id, id));
   res.sendStatus(204);
 });
-router4.put("/users/profile", async (req, res) => {
-  const { email, phone, password } = req.body;
-  if (!email) {
-    res.status(400).json({ error: "Email is required" });
-    return;
-  }
-  try {
-    const updateData = {
-      email,
-      phone: phone ?? null
-    };
-    if (password && password.trim().length > 0) {
-      if (password.length < 6) {
-        res.status(400).json({ error: "Password must be at least 6 characters long" });
-        return;
-      }
-      updateData.passwordHash = await bcryptjs_default.hash(password, 10);
-    }
-    const [updatedUser] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, req.user.id)).returning();
-    if (!updatedUser) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
-    res.json({
-      id: updatedUser.id,
-      username: updatedUser.username,
-      email: updatedUser.email,
-      phone: updatedUser.phone,
-      role: updatedUser.role,
-      companyId: updatedUser.companyId
-    });
-  } catch (err) {
-    req.log.error({ err }, "Failed to update profile");
-    res.status(500).json({ error: err.message || "Failed to update profile" });
-  }
-});
 var users_default = router4;
 
 // src/routes/products.ts
@@ -60041,7 +60277,7 @@ var import_express5 = __toESM(require_express2(), 1);
 
 // src/lib/gs1.ts
 import { randomBytes as randomBytes2 } from "crypto";
-var FNC1 = String.fromCharCode(232);
+var FNC1 = "<GS>";
 function checkDigit(digits) {
   let sum = 0;
   const reversed = digits.split("").reverse();
@@ -60092,7 +60328,7 @@ function generateUnitCode(input) {
   const padded = input.gtin.length === 13 ? "0" + input.gtin : input.gtin;
   const expiry = formatExpiry(input.expiry);
   const serial = makeSerial();
-  const raw = `01${padded}17${expiry}10${input.batch}${FNC1}21${serial}`;
+  const raw = `01${padded}21${serial}${FNC1}10${input.batch}${FNC1}17${expiry}`;
   return { raw, serial };
 }
 function generateSsccCode(companyPrefix, _seq) {
@@ -60108,7 +60344,7 @@ function generateSsccCode(companyPrefix, _seq) {
 function parseGs1Code(rawCode) {
   const result = {};
   let i = 0;
-  const normalized = rawCode.replace(new RegExp(FNC1, "g"), "|");
+  const normalized = rawCode.replace(/<GS>/g, "|").replace(/\u001d/g, "|").replace(/\u00e8/g, "|");
   let pos = 0;
   while (pos < normalized.length) {
     const ai = normalized.substring(pos, pos + 2);
@@ -60123,6 +60359,10 @@ function parseGs1Code(rawCode) {
       const yymmdd = normalized.substring(pos, pos + 6);
       pos += 6;
       result.expiry = yymmdd;
+    } else if (ai === "11") {
+      const yymmdd = normalized.substring(pos, pos + 6);
+      pos += 6;
+      result.mfgDate = yymmdd;
     } else if (ai === "10") {
       const nextSep = normalized.indexOf("|", pos);
       const nextAi = Math.min(
@@ -60180,21 +60420,25 @@ router5.post("/products", async (req, res) => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const isGs1Compliant = parsed.data.isGs1Compliant ?? false;
-  if (isGs1Compliant) {
-    if (!parsed.data.gtin) {
-      res.status(400).json({ error: "GTIN is required for GS1 compliant products" });
-      return;
-    }
-    if (!isValidGtin(parsed.data.gtin)) {
-      res.status(400).json({ error: "Invalid GTIN check digit" });
-      return;
-    }
-  }
   let companyId = req.user.companyId || (req.user.role === "master" || req.user.role === "super_master" ? req.body.companyId || req.query.companyId : null);
   if (!companyId) {
     res.status(400).json({ error: "Master must select a company context to add products" });
     return;
+  }
+  const isGs1Compliant = parsed.data.isGs1Compliant ?? false;
+  if (isGs1Compliant) {
+    if (!parsed.data.gtin) {
+      const [company] = await db.select({ gstin: companiesTable.gstin }).from(companiesTable).where(eq(companiesTable.id, Number(companyId)));
+      if (!company || !company.gstin) {
+        res.status(400).json({ error: "GTIN or Company GST is required for GS1 compliant products" });
+        return;
+      }
+    } else {
+      if (!isValidGtin(parsed.data.gtin)) {
+        res.status(400).json({ error: "Invalid GTIN check digit" });
+        return;
+      }
+    }
   }
   const [row] = await db.insert(productsTable).values({
     companyId: Number(companyId),
@@ -60359,6 +60603,30 @@ var batches_default = router7;
 
 // src/routes/codes.ts
 var import_express8 = __toESM(require_express2(), 1);
+function gstinToGtin(input) {
+  if (!input) return "00000000000000";
+  const clean = input.replace(/\D/g, "");
+  if (clean.length === 13 || clean.length === 14) {
+    const padded2 = clean.padStart(14, "0").slice(0, 14);
+    const digits = padded2.slice(0, 13).split("").map(Number);
+    let sum2 = 0;
+    for (let i = 0; i < 13; i++) {
+      const weight = i % 2 === 0 ? 3 : 1;
+      sum2 += digits[i] * weight;
+    }
+    const checkDigit2 = (10 - sum2 % 10) % 10;
+    return padded2.slice(0, 13) + checkDigit2;
+  }
+  const padded = clean.padEnd(13, "0").slice(0, 13);
+  const nums = padded.split("").map(Number);
+  let sum = 0;
+  for (let i = 0; i < 13; i++) {
+    const weight = i % 2 === 0 ? 3 : 1;
+    sum += nums[i] * weight;
+  }
+  const cd = (10 - sum % 10) % 10;
+  return padded + cd;
+}
 var router8 = (0, import_express8.Router)();
 router8.get("/codes/debug/recent", async (_req, res) => {
   try {
@@ -60387,16 +60655,32 @@ router8.get("/codes/debug/recent", async (_req, res) => {
   }
 });
 var getCityFromZip = (zip) => {
-  const cleanZip = zip.trim().toLowerCase();
-  if (cleanZip.startsWith("400") || cleanZip === "mumbai") return "Mumbai";
-  if (cleanZip.startsWith("110") || cleanZip === "delhi" || cleanZip === "new delhi") return "New Delhi";
-  if (cleanZip.startsWith("600") || cleanZip === "chennai") return "Chennai";
-  if (cleanZip.startsWith("500") || cleanZip === "hyderabad") return "Hyderabad";
-  if (cleanZip.startsWith("560") || cleanZip === "bangalore") return "Bengaluru";
-  if (cleanZip.startsWith("100") || cleanZip === "ny" || cleanZip === "new york") return "New York";
-  if (cleanZip === "singapore" || cleanZip.length === 6 && !isNaN(Number(cleanZip))) return "Singapore";
-  if (cleanZip === "dubai" || cleanZip.startsWith("dxb")) return "Dubai";
-  const defaultCities = ["Mumbai", "Singapore", "Dubai", "New Delhi", "Mumbai"];
+  const cleanZip = String(zip || "").toLowerCase().trim();
+  if (cleanZip.includes("mumbai")) return "Mumbai";
+  if (cleanZip.includes("pune")) return "Pune";
+  if (cleanZip.includes("delhi") || cleanZip.includes("new delhi")) return "New Delhi";
+  if (cleanZip.includes("chennai")) return "Chennai";
+  if (cleanZip.includes("hyderabad")) return "Hyderabad";
+  if (cleanZip.includes("bangalore") || cleanZip.includes("bengaluru")) return "Bengaluru";
+  if (cleanZip.includes("new york") || cleanZip.includes(" ny")) return "New York";
+  if (cleanZip.includes("singapore")) return "Singapore";
+  if (cleanZip.includes("dubai")) return "Dubai";
+  if (cleanZip.startsWith("411")) return "Pune";
+  if (cleanZip.startsWith("400")) return "Mumbai";
+  if (cleanZip.startsWith("110")) return "New Delhi";
+  if (cleanZip.startsWith("600")) return "Chennai";
+  if (cleanZip.startsWith("500")) return "Hyderabad";
+  if (cleanZip.startsWith("560")) return "Bengaluru";
+  if (cleanZip.startsWith("100")) return "New York";
+  if (cleanZip.length === 6 && !isNaN(Number(cleanZip))) return "Singapore";
+  const parts = cleanZip.split(",");
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed && isNaN(Number(trimmed)) && trimmed.length > 2) {
+      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    }
+  }
+  const defaultCities = ["Mumbai", "Singapore", "Dubai", "New Delhi", "Pune"];
   let hash2 = 0;
   for (let i = 0; i < cleanZip.length; i++) {
     hash2 = cleanZip.charCodeAt(i) + ((hash2 << 5) - hash2);
@@ -60477,6 +60761,45 @@ router8.get("/codes/public/:serial", async (req, res) => {
     } else if (searchSerial.includes(":")) {
       const parts = searchSerial.split(":");
       searchSerial = parts[parts.length - 1] || searchSerial;
+    }
+    if (searchSerial.includes("-")) {
+      const parts = searchSerial.split("-");
+      if (parts.length >= 4) {
+        const potentialSerial = parts[parts.length - 1];
+        if (potentialSerial && potentialSerial.length >= 6 && !potentialSerial.includes(" ")) {
+          const matches = await db.select({ id: codesTable.id }).from(codesTable).where(eq(codesTable.serialNumber, potentialSerial)).limit(1);
+          if (matches.length > 0) {
+            searchSerial = potentialSerial;
+            console.log(`[Public Verify] Normalized dash-separated URL to serial: "${searchSerial}"`);
+          }
+        }
+      }
+    }
+    if (searchSerial.includes("-")) {
+      const parts = searchSerial.split("-");
+      const serialIndex = parts.findIndex((p) => p.startsWith("21"));
+      if (serialIndex > -1) {
+        searchSerial = parts.slice(serialIndex).join("-").substring(2);
+      } else {
+        const ssccIndex = parts.findIndex((p) => p.startsWith("00"));
+        if (ssccIndex > -1) {
+          searchSerial = parts.slice(ssccIndex).join("-").substring(2);
+        }
+      }
+    } else if (searchSerial.includes("(21)")) {
+      const match = searchSerial.match(/\(21\)([^()]+)/);
+      if (match && match[1]) {
+        searchSerial = match[1];
+      }
+    } else if (searchSerial.includes("(00)")) {
+      const match = searchSerial.match(/\(00\)([^()]+)/);
+      if (match && match[1]) {
+        searchSerial = match[1];
+      }
+    } else if (searchSerial.startsWith("01") && searchSerial.length >= 18) {
+      searchSerial = searchSerial.substring(18);
+    } else if (searchSerial.startsWith("00") && searchSerial.length >= 20) {
+      searchSerial = searchSerial.substring(2);
     }
     console.log(`[Public Verify] Searching for: "${serial}" (normalized: "${searchSerial}")`);
     let rows = await buildQuery(
@@ -60649,11 +60972,15 @@ router8.post("/codes", requireAuth, requireModule("generate_codes"), async (req,
     id: batchesTable.id,
     productId: batchesTable.productId,
     batchNumber: batchesTable.batchNumber,
-    expiryDate: batchesTable.expiryDate,
+    batchExpiryDate: batchesTable.expiryDate,
+    batchMfgDate: batchesTable.mfgDate,
+    productExpiryDate: productsTable.expiryDate,
     gtin: productsTable.gtin,
     isGs1Compliant: productsTable.isGs1Compliant,
-    companyId: productsTable.companyId
-  }).from(batchesTable).innerJoin(productsTable, eq(batchesTable.productId, productsTable.id)).where(eq(batchesTable.id, parsed.data.batchId));
+    companyId: productsTable.companyId,
+    companyGstin: companiesTable.gstin,
+    companyPrefix: companiesTable.companyPrefix
+  }).from(batchesTable).innerJoin(productsTable, eq(batchesTable.productId, productsTable.id)).leftJoin(companiesTable, eq(productsTable.companyId, companiesTable.id)).where(eq(batchesTable.id, parsed.data.batchId));
   if (!batch) {
     res.status(404).json({ error: "Batch not found" });
     return;
@@ -60666,10 +60993,13 @@ router8.post("/codes", requireAuth, requireModule("generate_codes"), async (req,
   const inserts = [];
   for (let i = 0; i < parsed.data.quantity; i++) {
     if (isUnitLevel) {
-      if (batch.isGs1Compliant && batch.gtin) {
+      const gtinOrGst = batch.companyGstin || batch.gtin;
+      if (batch.isGs1Compliant && gtinOrGst) {
+        const gtinValue = gstinToGtin(gtinOrGst);
+        const expiryValue = batch.batchExpiryDate || batch.productExpiryDate || "";
         const { raw, serial } = generateUnitCode({
-          gtin: batch.gtin,
-          expiry: batch.expiryDate,
+          gtin: gtinValue,
+          expiry: expiryValue,
           batch: batch.batchNumber
         });
         inserts.push({
@@ -60693,8 +61023,11 @@ router8.post("/codes", requireAuth, requireModule("generate_codes"), async (req,
         });
       }
     } else {
-      if (batch.isGs1Compliant && batch.gtin) {
-        const { raw, sscc } = generateSsccCode(batch.gtin.slice(1, 8), i);
+      const gtinOrGst = batch.companyGstin || batch.gtin;
+      if (batch.isGs1Compliant && gtinOrGst) {
+        const gtinValue = gstinToGtin(gtinOrGst);
+        const prefixToUse = batch.companyPrefix || gtinValue.slice(1, 8) || "8901234";
+        const { raw, sscc } = generateSsccCode(prefixToUse, i);
         inserts.push({
           productId: batch.productId,
           batchId: batch.id,
@@ -61067,20 +61400,508 @@ router11.post("/subscription/set", async (req, res) => {
 });
 var subscription_default = router11;
 
-// src/routes/index.ts
+// src/routes/system.ts
+var import_express12 = __toESM(require_express2(), 1);
+
+// src/lib/db-reset.ts
+async function seedDatabase(dbInstance, seedData) {
+  if (seedData) {
+    const companyVal = seedData.company || {
+      name: "Demo Pharma Pvt Ltd",
+      email: "ops@demopharma.in",
+      address: "Plot 14, MIDC Industrial Area, Pune, Maharashtra 411019",
+      gstin: "27AABCD1234E1Z5"
+    };
+    const [insertedCo] = await dbInstance.insert(companiesTable).values(companyVal).returning();
+    const usersList = seedData.users || [];
+    const usersToInsert = [];
+    for (const u of usersList) {
+      const passwordHash = await bcryptjs_default.hash(u.password || "password123", 10);
+      usersToInsert.push({
+        username: u.username,
+        email: u.email,
+        phone: u.phone || null,
+        passwordHash,
+        role: u.role,
+        companyId: u.role === "super_master" || u.role === "master" ? null : insertedCo.id
+      });
+    }
+    const insertedUsers = await dbInstance.insert(usersTable).values(usersToInsert).returning();
+    const locationsList = seedData.locations || [];
+    let warehouse2 = null;
+    if (locationsList.length > 0) {
+      const locationsToInsert = locationsList.map((loc) => ({
+        companyId: insertedCo.id,
+        locationType: loc.locationType,
+        uniqueName: loc.uniqueName,
+        locationName: loc.locationName,
+        contactNo: loc.contactNo || null,
+        state: loc.state || null,
+        city: loc.city || null,
+        address: loc.address || null
+      }));
+      const insertedLocs = await dbInstance.insert(locationsTable).values(locationsToInsert).returning();
+      warehouse2 = insertedLocs[0];
+    }
+    const productsList = seedData.products || [];
+    let insertedProds = [];
+    if (productsList.length > 0) {
+      const productsToInsert = productsList.map((prod) => ({
+        companyId: insertedCo.id,
+        skuId: prod.skuId,
+        name: prod.name,
+        skuSize: prod.skuSize || "",
+        marketedBy: prod.marketedBy || null,
+        sapDescription: prod.sapDescription || null,
+        gtin: prod.gtin || null,
+        mrp: prod.mrp ? Number(prod.mrp) : null,
+        registrationNo: prod.registrationNo || null,
+        l1Size: prod.l1Size ? Number(prod.l1Size) : null,
+        l2Size: prod.l2Size ? Number(prod.l2Size) : null,
+        shipperSize: prod.shipperSize ? Number(prod.shipperSize) : null,
+        cautionLogoUrl: prod.cautionLogoUrl || null,
+        productLogoUrl: prod.productLogoUrl || null,
+        labelPdfUrl: prod.labelPdfUrl || null,
+        expiryDate: prod.expiryDate || null
+      }));
+      insertedProds = await dbInstance.insert(productsTable).values(productsToInsert).returning();
+    }
+    const batchesList = seedData.batches || [];
+    const batchesToInsert = [];
+    for (const bat of batchesList) {
+      const matchedProd = insertedProds.find((p) => p.skuId === bat.productSkuId);
+      if (matchedProd) {
+        batchesToInsert.push({
+          productId: matchedProd.id,
+          batchNumber: bat.batchNumber,
+          mfgDate: bat.mfgDate || null,
+          expiryDate: bat.expiryDate || null
+        });
+      }
+    }
+    let insertedBatches = [];
+    if (batchesToInsert.length > 0) {
+      insertedBatches = await dbInstance.insert(batchesTable).values(batchesToInsert).returning();
+    }
+    const codeRows2 = [];
+    for (const batch of insertedBatches) {
+      const matchedProd = insertedProds.find((p) => p.id === batch.productId);
+      if (!matchedProd) continue;
+      for (let i = 0; i < 20; i++) {
+        const { raw, serial } = generateUnitCode({
+          gtin: matchedProd.gtin || "08901234567896",
+          expiry: batch.expiryDate || matchedProd.expiryDate || "2028-12-31",
+          batch: batch.batchNumber
+        });
+        codeRows2.push({
+          productId: matchedProd.id,
+          batchId: batch.id,
+          level: "unit",
+          rawString: raw,
+          serialNumber: serial,
+          ssccCode: null
+        });
+      }
+      for (let i = 0; i < 2; i++) {
+        const { raw, sscc } = generateSsccCode("8901234", Math.floor(Math.random() * 1e5));
+        codeRows2.push({
+          productId: matchedProd.id,
+          batchId: batch.id,
+          level: "shipper",
+          rawString: raw,
+          serialNumber: null,
+          ssccCode: sscc
+        });
+      }
+    }
+    if (codeRows2.length > 0) {
+      const insertedCodes2 = await dbInstance.insert(codesTable).values(codeRows2).returning();
+      const opUser2 = insertedUsers.find((u) => u.role === "operator");
+      const opUserId2 = opUser2 ? opUser2.id : insertedUsers[0]?.id;
+      if (warehouse2 && insertedCodes2.length > 0) {
+        const toMap2 = insertedCodes2.slice(0, Math.min(insertedCodes2.length, 5));
+        for (const c of toMap2) {
+          await dbInstance.update(codesTable).set({
+            mapped: true,
+            mappedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            mappedByUserId: opUserId2,
+            locationId: warehouse2.id
+          }).where(eq(codesTable.id, c.id));
+        }
+      }
+    }
+    return;
+  }
+  const [demoCo] = await dbInstance.insert(companiesTable).values({
+    name: "luphonix",
+    email: "ops@luphonix.in",
+    address: "Plot 14, MIDC Industrial Area, Pune, Maharashtra 411019",
+    gstin: "27AABCD1234E1Z5"
+  }).returning();
+  const supermasterUsername = process.env.SUPERMASTER_USERNAME || "supermaster";
+  const supermasterPassword = process.env.SUPERMASTER_PASSWORD || "kp_dk@2026";
+  const superMasterHash = await bcryptjs_default.hash(supermasterPassword, 10);
+  const masterHash = await bcryptjs_default.hash("master123", 10);
+  const adminHash = await bcryptjs_default.hash("admin123", 10);
+  const managerHash = await bcryptjs_default.hash("manager123", 10);
+  const opHash = await bcryptjs_default.hash("op123", 10);
+  const users = await dbInstance.insert(usersTable).values([
+    {
+      username: supermasterUsername,
+      email: process.env.SUPERMASTER_EMAIL || "supermaster@tracelytag.com",
+      phone: "+91 8000000000",
+      passwordHash: superMasterHash,
+      role: "super_master",
+      companyId: null
+    },
+    {
+      username: "master",
+      email: "master@tracelytag.com",
+      phone: "+91 9000000000",
+      passwordHash: masterHash,
+      role: "master",
+      companyId: null
+    },
+    {
+      username: "demo_admin",
+      email: "admin@demopharma.in",
+      phone: "+91 9111111111",
+      passwordHash: adminHash,
+      role: "admin",
+      companyId: demoCo.id
+    },
+    {
+      username: "demo_manager",
+      email: "manager@demopharma.in",
+      phone: "+91 9155555555",
+      passwordHash: managerHash,
+      role: "client_admin",
+      companyId: demoCo.id
+    },
+    {
+      username: "demo_op",
+      email: "op@demopharma.in",
+      phone: "+91 9222222222",
+      passwordHash: opHash,
+      role: "operator",
+      companyId: demoCo.id
+    }
+  ]).returning();
+  const [warehouse] = await dbInstance.insert(locationsTable).values([
+    {
+      companyId: demoCo.id,
+      locationType: "Warehouse",
+      uniqueName: "WH-PUNE-01",
+      locationName: "Pune Central Warehouse",
+      contactNo: "+91 2027451234",
+      state: "Maharashtra",
+      city: "Pune",
+      address: "Plot 14, MIDC Industrial Area, Pune 411019"
+    },
+    {
+      companyId: demoCo.id,
+      locationType: "Distributor",
+      uniqueName: "DST-MUM-04",
+      locationName: "Mumbai Distributor Hub",
+      contactNo: "+91 2261234500",
+      state: "Maharashtra",
+      city: "Mumbai",
+      address: "Andheri East, Mumbai 400069"
+    },
+    {
+      companyId: demoCo.id,
+      locationType: "Retailer",
+      uniqueName: "RTL-DEL-12",
+      locationName: "Connaught Place Pharmacy",
+      contactNo: "+91 1141234567",
+      state: "Delhi",
+      city: "New Delhi",
+      address: "Block A, Connaught Place, New Delhi 110001"
+    }
+  ]).returning();
+  const [paracet, vitaminC] = await dbInstance.insert(productsTable).values([
+    {
+      companyId: demoCo.id,
+      skuId: "PARA-500-10S",
+      name: "Paracetamol 500mg",
+      skuSize: "10x10 Tablets",
+      marketedBy: "Demo Pharma Pvt Ltd",
+      sapDescription: "PARACETAMOL TABLETS IP 500MG",
+      gtin: "08901234567896",
+      mrp: 45,
+      registrationNo: "MH/DRUGS/2023/0451",
+      l1Size: 10,
+      l2Size: 100,
+      shipperSize: 1e3,
+      cautionLogoUrl: null,
+      productLogoUrl: null,
+      labelPdfUrl: null,
+      expiryDate: "2028-04-30"
+    },
+    {
+      companyId: demoCo.id,
+      skuId: "VITC-1000-30S",
+      name: "Vitamin C 1000mg Effervescent",
+      skuSize: "30 Tablets Tube",
+      marketedBy: "Demo Pharma Pvt Ltd",
+      sapDescription: "ASCORBIC ACID 1000MG EFFERVESCENT",
+      gtin: "08907654321094",
+      mrp: 299,
+      registrationNo: "MH/DRUGS/2023/0892",
+      l1Size: 6,
+      l2Size: 36,
+      shipperSize: 216,
+      cautionLogoUrl: null,
+      productLogoUrl: null,
+      labelPdfUrl: null,
+      expiryDate: "2027-12-31"
+    }
+  ]).returning();
+  const [batchA, batchB] = await dbInstance.insert(batchesTable).values([
+    {
+      productId: paracet.id,
+      batchNumber: "PCM2604A",
+      mfgDate: "2026-04-01",
+      expiryDate: "2028-04-30"
+    },
+    {
+      productId: vitaminC.id,
+      batchNumber: "VTC2604B",
+      mfgDate: "2026-04-15",
+      expiryDate: "2027-12-31"
+    }
+  ]).returning();
+  const codeRows = [];
+  for (let i = 0; i < 30; i++) {
+    const { raw, serial } = generateUnitCode({
+      gtin: paracet.gtin,
+      expiry: batchA.expiryDate || paracet.expiryDate,
+      batch: batchA.batchNumber
+    });
+    codeRows.push({
+      productId: paracet.id,
+      batchId: batchA.id,
+      level: "unit",
+      rawString: raw,
+      serialNumber: serial,
+      ssccCode: null
+    });
+  }
+  for (let i = 0; i < 20; i++) {
+    const { raw, serial } = generateUnitCode({
+      gtin: vitaminC.gtin,
+      expiry: batchB.expiryDate || vitaminC.expiryDate,
+      batch: batchB.batchNumber
+    });
+    codeRows.push({
+      productId: vitaminC.id,
+      batchId: batchB.id,
+      level: "unit",
+      rawString: raw,
+      serialNumber: serial,
+      ssccCode: null
+    });
+  }
+  for (let i = 0; i < 5; i++) {
+    const { raw, sscc } = generateSsccCode("8901234", i);
+    codeRows.push({
+      productId: paracet.id,
+      batchId: batchA.id,
+      level: "shipper",
+      rawString: raw,
+      serialNumber: null,
+      ssccCode: sscc
+    });
+  }
+  for (let i = 0; i < 2; i++) {
+    const { raw, sscc } = generateSsccCode("8901234", 100 + i);
+    codeRows.push({
+      productId: paracet.id,
+      batchId: batchA.id,
+      level: "pallet",
+      rawString: raw,
+      serialNumber: null,
+      ssccCode: sscc
+    });
+  }
+  const insertedCodes = await dbInstance.insert(codesTable).values(codeRows).returning();
+  const opUser = users.find((u) => u.username === "demo_op");
+  const opUserId = opUser ? opUser.id : 4;
+  const toMap = insertedCodes.slice(0, 12);
+  for (const c of toMap) {
+    await dbInstance.update(codesTable).set({
+      mapped: true,
+      mappedAt: (/* @__PURE__ */ new Date()).toISOString(),
+      mappedByUserId: opUserId,
+      locationId: warehouse.id
+    }).where(eq(codesTable.id, c.id));
+  }
+  const customerScans = [
+    {
+      codeId: insertedCodes[0].id,
+      customerName: "Aravind Sharma",
+      mobileNumber: "+91 98765 00121",
+      zipCode: "400001",
+      city: "Mumbai",
+      scanTime: "14:22:10",
+      scanDate: "15 Jun 2024"
+    },
+    ...Array.from({ length: 12 }).map((_, idx) => ({
+      codeId: insertedCodes[1].id,
+      customerName: "Michael Chang",
+      mobileNumber: "+65 8299 1192",
+      zipCode: "039794",
+      city: "Singapore",
+      scanTime: `13:${10 + idx}:45`,
+      scanDate: "15 Jun 2024"
+    })),
+    {
+      codeId: insertedCodes[2].id,
+      customerName: "Elena Petrova",
+      mobileNumber: "+971 50 123 441",
+      zipCode: "DXB-992",
+      city: "Dubai",
+      scanTime: "11:40:02",
+      scanDate: "14 Jun 2024"
+    },
+    ...Array.from({ length: 4 }).map((_, idx) => ({
+      codeId: insertedCodes[3].id,
+      customerName: "Rajesh Kumar",
+      mobileNumber: "+91 99123 88123",
+      zipCode: "110001",
+      city: "New Delhi",
+      scanTime: `09:${15 + idx * 5}:33`,
+      scanDate: "14 Jun 2024"
+    }))
+  ];
+  await dbInstance.insert(customerScansTable).values(customerScans);
+}
+async function resetAndSeedDatabase(dbInstance, seedData) {
+  await dbInstance.delete(customerScansTable);
+  await dbInstance.delete(deviceCodesTable);
+  await dbInstance.delete(passkeysTable);
+  await dbInstance.delete(codesTable);
+  await dbInstance.delete(batchesTable);
+  await dbInstance.delete(productsTable);
+  await dbInstance.delete(locationsTable);
+  await dbInstance.delete(usersTable);
+  await dbInstance.delete(companiesTable);
+  await seedDatabase(dbInstance, seedData);
+}
+
+// src/routes/system.ts
 var router12 = (0, import_express12.Router)();
-router12.use(health_default);
-router12.use(auth_default);
-router12.use(companies_default);
-router12.use(users_default);
-router12.use(products_default);
-router12.use(locations_default);
-router12.use(batches_default);
-router12.use(codes_default);
-router12.use(reports_default);
-router12.use(upload_default);
-router12.use(subscription_default);
-var routes_default = router12;
+var readConfig = async () => {
+  let hideMappingCode = true;
+  let datamatrixUrlMode = false;
+  try {
+    const rows = await db.select().from(systemConfigsTable);
+    const mapCodeRow = rows.find((r) => r.key === "hideMappingCode");
+    if (mapCodeRow) {
+      hideMappingCode = mapCodeRow.value === "true";
+    }
+    const dmRow = rows.find((r) => r.key === "datamatrixUrlMode");
+    if (dmRow) {
+      datamatrixUrlMode = dmRow.value === "true";
+    }
+  } catch (err) {
+  }
+  return { hideMappingCode, datamatrixUrlMode };
+};
+var writeConfig = async (config2) => {
+  try {
+    if (config2.hideMappingCode !== void 0) {
+      await db.insert(systemConfigsTable).values({
+        key: "hideMappingCode",
+        value: String(config2.hideMappingCode)
+      }).onConflictDoUpdate({
+        target: systemConfigsTable.key,
+        set: { value: String(config2.hideMappingCode) }
+      });
+    }
+    if (config2.datamatrixUrlMode !== void 0) {
+      await db.insert(systemConfigsTable).values({
+        key: "datamatrixUrlMode",
+        value: String(config2.datamatrixUrlMode)
+      }).onConflictDoUpdate({
+        target: systemConfigsTable.key,
+        set: { value: String(config2.datamatrixUrlMode) }
+      });
+    }
+  } catch (err) {
+  }
+};
+router12.get("/system-config", requireAuth, async (req, res) => {
+  const config2 = await readConfig();
+  res.json(config2);
+});
+router12.post("/system-config", requireAuth, requireRole("super_master"), async (req, res) => {
+  const { hideMappingCode, datamatrixUrlMode } = req.body;
+  const updates = {};
+  if (hideMappingCode !== void 0) {
+    if (typeof hideMappingCode !== "boolean") {
+      res.status(400).json({ error: "Invalid value for hideMappingCode" });
+      return;
+    }
+    updates.hideMappingCode = hideMappingCode;
+  }
+  if (datamatrixUrlMode !== void 0) {
+    if (typeof datamatrixUrlMode !== "boolean") {
+      res.status(400).json({ error: "Invalid value for datamatrixUrlMode" });
+      return;
+    }
+    updates.datamatrixUrlMode = datamatrixUrlMode;
+  }
+  await writeConfig(updates);
+  const config2 = await readConfig();
+  res.json({ success: true, config: config2 });
+});
+router12.use("/system", requireAuth, requireRole("super_master"));
+router12.post("/system/reset-database", async (req, res) => {
+  try {
+    const { seedData } = req.body;
+    req.log.info("Supermaster database reset requested...");
+    await resetAndSeedDatabase(db, seedData);
+    req.log.info("Database reset completed successfully");
+    res.json({ success: true, message: "Database reset and seeded successfully." });
+  } catch (err) {
+    req.log.error({ err }, "Database reset failed");
+    res.status(500).json({ error: err.message || "Failed to reset database" });
+  }
+});
+router12.get("/system/info", async (req, res) => {
+  try {
+    res.json({
+      env: process.env,
+      nodeVersion: process.version,
+      platform: process.platform,
+      arch: process.arch,
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      cwd: process.cwd()
+    });
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch system info");
+    res.status(500).json({ error: err.message || "Failed to fetch system info" });
+  }
+});
+var system_default = router12;
+
+// src/routes/index.ts
+var router13 = (0, import_express13.Router)();
+router13.use(health_default);
+router13.use(auth_default);
+router13.use(companies_default);
+router13.use(users_default);
+router13.use(products_default);
+router13.use(locations_default);
+router13.use(batches_default);
+router13.use(codes_default);
+router13.use(reports_default);
+router13.use(upload_default);
+router13.use(subscription_default);
+router13.use(system_default);
+var routes_default = router13;
 
 // src/lib/logger.ts
 var import_pino = __toESM(require_pino(), 1);
@@ -61165,7 +61986,7 @@ var loadUser = async (req, res, next) => {
 // src/app.ts
 import path3 from "path";
 import fs3 from "fs";
-var app = (0, import_express13.default)();
+var app = (0, import_express14.default)();
 app.set("trust proxy", 1);
 app.use(
   (0, import_pino_http.pinoHttp)({
@@ -61192,16 +62013,16 @@ app.use(
     credentials: true
   })
 );
-app.use(import_express13.default.json({ limit: "1mb" }));
-app.use(import_express13.default.urlencoded({ extended: true }));
-app.use((0, import_cookie_parser.default)("traclytag-production-secure-session-key-xyz-987654321"));
+app.use(import_express14.default.json({ limit: "1mb" }));
+app.use(import_express14.default.urlencoded({ extended: true }));
+app.use((0, import_cookie_parser.default)("traclytag-production-secure-session-key-xyz-987654987"));
 app.use(loadUser);
 app.use("/api", routes_default);
 var uploadDir2 = process.env.VERCEL ? "/tmp" : path3.resolve(__dirname, "../uploads");
 if (!fs3.existsSync(uploadDir2)) {
   fs3.mkdirSync(uploadDir2, { recursive: true });
 }
-app.use("/api/uploads", import_express13.default.static(uploadDir2));
+app.use("/api/uploads", import_express14.default.static(uploadDir2));
 var app_default = app;
 export {
   app_default as default

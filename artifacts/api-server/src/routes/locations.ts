@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, locationsTable } from "@workspace/db";
 import { CreateLocationBody } from "@workspace/api-zod";
-import { requireAuth, requireModule } from "../lib/session";
+import { requireAuth, requireModule } from '../lib/session.js';
 
 const router: IRouter = Router();
 
@@ -36,7 +36,7 @@ router.post("/locations", async (req, res): Promise<void> => {
   }
 
   if (parsed.data.gln) {
-    const { validateGs1CheckDigit } = await import("../lib/gs1-validation");
+    const { validateGs1CheckDigit } = await import('../lib/gs1-validation.js');
     if (!validateGs1CheckDigit(parsed.data.gln)) {
       res.status(400).json({ error: "Invalid GLN checksum. Must be standard 13-digit GS1 location code." });
       return;

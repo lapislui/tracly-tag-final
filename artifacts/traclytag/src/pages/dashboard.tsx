@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useGetDashboardSummary, useGetCurrentUser } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { 
@@ -16,6 +17,20 @@ export default function Dashboard() {
   const { data: summary, isLoading } = useGetDashboardSummary();
 
   const isMaster = user?.role === "master";
+
+  const [hideRecentSerialization, setHideRecentSerialization] = useState(() => {
+    return localStorage.getItem("traclytag_hide_recent_serialization") === "true";
+  });
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setHideRecentSerialization(localStorage.getItem("traclytag_hide_recent_serialization") === "true");
+    };
+    window.addEventListener("traclytag_recent_serialization_visibility_changed", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("traclytag_recent_serialization_visibility_changed", handleVisibilityChange);
+    };
+  }, []);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -206,68 +221,70 @@ export default function Dashboard() {
       </div>
 
       {/* Recent Serialization Table */}
-      <Card className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-[#E2E8F0] bg-[#F8FAFC] flex justify-between items-center">
-          <h2 className="font-semibold text-[#0F172A] text-base">Recent Product Serialization</h2>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex items-center gap-2 h-9 border border-[#E2E8F0] bg-white hover:bg-slate-50 font-bold text-[#0F172A] px-3 cursor-pointer">
-              <Filter className="h-4 w-4" /> Filter
-            </Button>
-            <Button className="flex items-center gap-2 h-9 bg-[#2563EB] hover:bg-[#2563EB]/90 text-white px-4 rounded-lg font-semibold shadow-md cursor-pointer">
-              <Plus className="h-4 w-4" /> Generate New
-            </Button>
+      {!hideRecentSerialization && (
+        <Card className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#E2E8F0] bg-[#F8FAFC] flex justify-between items-center">
+            <h2 className="font-semibold text-[#0F172A] text-base">Recent Product Serialization</h2>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex items-center gap-2 h-9 border border-[#E2E8F0] bg-white hover:bg-slate-50 font-bold text-[#0F172A] px-3 cursor-pointer">
+                <Filter className="h-4 w-4" /> Filter
+              </Button>
+              <Button className="flex items-center gap-2 h-9 bg-[#2563EB] hover:bg-[#2563EB]/90 text-white px-4 rounded-lg font-semibold shadow-md cursor-pointer">
+                <Plus className="h-4 w-4" /> Generate New
+              </Button>
+            </div>
           </div>
-        </div>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
-                <TableHead className="px-6 py-4 text-[11px] font-bold text-[#737686] uppercase tracking-wider">Unit ID</TableHead>
-                <TableHead className="px-6 py-4 text-[11px] font-bold text-[#737686] uppercase tracking-wider">Product Name</TableHead>
-                <TableHead className="px-6 py-4 text-[11px] font-bold text-[#737686] uppercase tracking-wider">Batch No.</TableHead>
-                <TableHead className="px-6 py-4 text-[11px] font-bold text-[#737686] uppercase tracking-wider">Status</TableHead>
-                <TableHead className="px-6 py-4 text-[11px] font-bold text-[#737686] uppercase tracking-wider">Level</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {summary.recentCodes?.map((code) => (
-                <TableRow key={code.id} className="hover:bg-slate-50 transition-colors border-b border-[#E2E8F0]">
-                  <td className="px-6 py-4 font-mono font-bold text-[#2563EB] text-xs">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate max-w-[150px] inline-block">{code.serialNumber || code.ssccCode}</span>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-[#737686] cursor-pointer" onClick={() => copyToClipboard(code.rawString)}>
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 font-semibold text-[#0F172A] text-sm">{code.productName || "Unknown"}</td>
-                  <td className="px-6 py-4 font-mono text-xs text-[#434655]">{code.batchNumber || "Unknown"}</td>
-                  <td className="px-6 py-4">
-                    <span className={cn(
-                      "inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-                      code.mapped 
-                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
-                        : "bg-slate-100 text-[#434655] border-slate-200"
-                    )}>
-                      {code.mapped ? "Mapped" : "Unmapped"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant="outline" className="uppercase font-mono tracking-wider">{code.level}</Badge>
-                  </td>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                  <TableHead className="px-6 py-4 text-[11px] font-bold text-[#737686] uppercase tracking-wider">Unit ID</TableHead>
+                  <TableHead className="px-6 py-4 text-[11px] font-bold text-[#737686] uppercase tracking-wider">Product Name</TableHead>
+                  <TableHead className="px-6 py-4 text-[11px] font-bold text-[#737686] uppercase tracking-wider">Batch No.</TableHead>
+                  <TableHead className="px-6 py-4 text-[11px] font-bold text-[#737686] uppercase tracking-wider">Status</TableHead>
+                  <TableHead className="px-6 py-4 text-[11px] font-bold text-[#737686] uppercase tracking-wider">Level</TableHead>
                 </TableRow>
-              ))}
-              {(!summary.recentCodes || summary.recentCodes.length === 0) && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-[#737686]">
-                    No recent codes found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+              </TableHeader>
+              <TableBody>
+                {summary.recentCodes?.map((code) => (
+                  <TableRow key={code.id} className="hover:bg-slate-50 transition-colors border-b border-[#E2E8F0]">
+                    <td className="px-6 py-4 font-mono font-bold text-[#2563EB] text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate max-w-[150px] inline-block">{code.serialNumber || code.ssccCode}</span>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 text-[#737686] cursor-pointer" onClick={() => copyToClipboard(code.rawString)}>
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 font-semibold text-[#0F172A] text-sm">{code.productName || "Unknown"}</td>
+                    <td className="px-6 py-4 font-mono text-xs text-[#434655]">{code.batchNumber || "Unknown"}</td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
+                        code.mapped 
+                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" 
+                          : "bg-slate-100 text-[#434655] border-slate-200"
+                      )}>
+                        {code.mapped ? "Mapped" : "Unmapped"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="outline" className="uppercase font-mono tracking-wider">{code.level}</Badge>
+                    </td>
+                  </TableRow>
+                ))}
+                {(!summary.recentCodes || summary.recentCodes.length === 0) && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-[#737686]">
+                      No recent codes found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
 
       {/* Technical Footnote */}
       <div className="mt-8 flex items-center justify-between border-t border-[#E2E8F0] pt-6 text-[10px] text-[#737686] uppercase tracking-widest font-semibold">

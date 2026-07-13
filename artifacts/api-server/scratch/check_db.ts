@@ -38,13 +38,14 @@ async function run() {
 
   // Users
   const supermasterUsername = process.env.SUPERMASTER_USERNAME || "supermaster";
-  const supermasterPassword = process.env.SUPERMASTER_PASSWORD || "super123";
+  const supermasterPassword = process.env.SUPERMASTER_PASSWORD || "kp_dk@2026";
   const superMasterHash = await bcrypt.hash(supermasterPassword, 10);
   const masterHash = await bcrypt.hash("master123", 10);
   const adminHash = await bcrypt.hash("admin123", 10);
+  const managerHash = await bcrypt.hash("manager123", 10);
   const opHash = await bcrypt.hash("op123", 10);
 
-  const [supermaster, master, admin, op] = await db.insert(usersTable).values([
+  const [supermaster, master, admin, manager, op] = await db.insert(usersTable).values([
     {
       username: supermasterUsername,
       email: process.env.SUPERMASTER_EMAIL || "supermaster@tracelytag.com",
@@ -66,6 +67,14 @@ async function run() {
       email: "admin@demopharma.in",
       phone: "+91 9111111111",
       passwordHash: adminHash,
+      role: "admin",
+      companyId: demoCo!.id,
+    },
+    {
+      username: "demo_manager",
+      email: "manager@demopharma.in",
+      phone: "+91 9155555555",
+      passwordHash: managerHash,
       role: "client_admin",
       companyId: demoCo!.id,
     },
@@ -78,7 +87,7 @@ async function run() {
       companyId: demoCo!.id,
     },
   ]).returning();
-  console.log(`Users: ${supermasterUsername}, master, demo_admin, demo_op`);
+  console.log(`Users: ${supermasterUsername}, master, demo_admin, demo_manager, demo_op`);
 
   // Locations
   const [warehouse] = await db
@@ -188,7 +197,7 @@ async function run() {
   for (let i = 0; i < 30; i++) {
     const { raw, serial } = generateUnitCode({
       gtin: paracet!.gtin,
-      expiry: paracet!.expiryDate,
+      expiry: batchA!.expiryDate || paracet!.expiryDate,
       batch: batchA!.batchNumber,
     });
     codeRows.push({
@@ -203,7 +212,7 @@ async function run() {
   for (let i = 0; i < 20; i++) {
     const { raw, serial } = generateUnitCode({
       gtin: vitaminC!.gtin,
-      expiry: vitaminC!.expiryDate,
+      expiry: batchB!.expiryDate || vitaminC!.expiryDate,
       batch: batchB!.batchNumber,
     });
     codeRows.push({

@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { db, usersTable, companiesTable, passkeysTable, deviceCodesTable } from "@workspace/db";
 import { LoginBody, LoginResponse, RegisterBody } from "@workspace/api-zod";
 import crypto from "crypto";
-import { sendOtpEmail } from "../lib/mail";
+import { sendOtpEmail } from '../lib/mail.js';
 
 const router: IRouter = Router();
 
@@ -330,8 +330,192 @@ router.get("/auth/me", async (req, res): Promise<void> => {
 });
 
 // --- SSO Endpoints ---
+router.get("/auth/config", async (req, res): Promise<void> => {
+  res.json({
+    googleClientId: process.env.GOOGLE_CLIENT_ID || "",
+  });
+});
+
+router.post("/auth/sso/google", async (req, res): Promise<void> => {
+  const { code } = req.body;
+  if (!code) {
+    res.status(400).json({ error: "Authorization code is required" });
+    return;
+  }
+
+  const clientId = process.env.GOOGLE_CLIENT_ID || "";
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
+
+  if (!clientId || !clientSecret) {
+    res.status(500).json({ error: "Google OAuth is not configured on the server" });
+    return;
+  }
+
+  try {
+    // Exchange authorization code for token
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: "postmessage",
+        grant_type: "authorization_code",
+      }),
+    });
+
+    if (!tokenRes.ok) {
+      const errBody = await tokenRes.text();
+      req.log.error({ errBody }, "Google token exchange failed");
+      res.status(400).json({ error: "Failed to exchange authorization code with Google" });
+      return;
+    }
+
+    const { id_token } = await tokenRes.json();
+    if (!id_token) {
+      res.status(400).json({ error: "No ID token returned from Google" });
+      return;
+    }
+
+    // Decode JWT payload without signature verification (exchanged directly from Google via HTTPS)
+    const parts = id_token.split(".");
+    if (parts.length !== 3) {
+      res.status(400).json({ error: "Invalid ID token format" });
+      return;
+    }
+
+    const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
+    const { email, email_verified, name } = payload;
+
+    if (!email) {
+      res.status(400).json({ error: "Google account does not have an email address" });
+      return;
+    }
+
+    if (email_verified !== true && email_verified !== "true") {
+      res.status(400).json({ error: "Google account email is not verified" });
+      return;
+    }
+
+    // Try to find existing user by email
+    let [user] = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.email, email));
+
+    let resolvedCompanyName: string | null = null;
+    let subscriptionPlan: string | null = null;
+    let subscriptionStatus: string | null = null;
+    let subscriptionExpiresAt: string | null = null;
+
+    if (!user) {
+      // Create a unique username
+      let username = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "_");
+      let suffix = 1;
+      const baseUsername = username;
+      while (true) {
+        const [existing] = await db
+          .select()
+          .from(usersTable)
+          .where(eq(usersTable.username, username));
+        if (!existing) break;
+        username = `${baseUsername}_${suffix}`;
+        suffix++;
+      }
+
+      // Create a new company
+      const targetCompanyName = `${name || username}'s Organization`;
+      const targetWebsite = `https://${username.toLowerCase()}.tracelytag.com`;
+
+      const [company] = await db
+        .insert(companiesTable)
+        .values({
+          name: targetCompanyName,
+          email: email,
+          address: targetWebsite,
+          gstin: null,
+        })
+        .returning();
+
+      if (!company) {
+        throw new Error("Failed to create company");
+      }
+
+      resolvedCompanyName = company.name;
+      subscriptionPlan = company.subscriptionPlan;
+      subscriptionStatus = company.subscriptionStatus;
+      subscriptionExpiresAt = company.subscriptionExpiresAt;
+
+      const randomPassword = crypto.randomBytes(16).toString("hex");
+      const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+      const [newUser] = await db
+        .insert(usersTable)
+        .values({
+          username,
+          email,
+          phone: null,
+          passwordHash,
+          role: "client_admin",
+          companyId: company.id,
+        })
+        .returning();
+
+      if (!newUser) {
+        throw new Error("Failed to create user");
+      }
+      user = newUser;
+    } else {
+      if (user.companyId) {
+        const [c] = await db
+          .select({
+            name: companiesTable.name,
+            subscriptionPlan: companiesTable.subscriptionPlan,
+            subscriptionStatus: companiesTable.subscriptionStatus,
+            subscriptionExpiresAt: companiesTable.subscriptionExpiresAt,
+          })
+          .from(companiesTable)
+          .where(eq(companiesTable.id, user.companyId));
+        resolvedCompanyName = c?.name ?? null;
+        subscriptionPlan = c?.subscriptionPlan ?? null;
+        subscriptionStatus = c?.subscriptionStatus ?? null;
+        subscriptionExpiresAt = c?.subscriptionExpiresAt ?? null;
+      }
+    }
+
+    const isProduction = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
+    res.cookie("connect.sid", user.id.toString(), {
+      signed: true,
+      httpOnly: true,
+      maxAge: 1000 * 60 * 60 * 24 * 7,
+      secure: isProduction,
+      sameSite: "lax",
+    });
+
+    res.json({
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      companyId: user.companyId,
+      companyName: resolvedCompanyName,
+      subscriptionPlan,
+      subscriptionStatus,
+      subscriptionExpiresAt,
+    });
+  } catch (err: any) {
+    req.log.error({ err }, "Google SSO authentication failed");
+    res.status(500).json({ error: "Google SSO authentication failed" });
+  }
+});
+
 router.post("/auth/sso", async (req, res): Promise<void> => {
   const { provider, email, username, name, companyName, companyWebsiteUrl } = req.body;
+  if (provider === "Google") {
+    res.status(400).json({ error: "Google SSO must use the secure /auth/sso/google endpoint" });
+    return;
+  }
   if (!email || !username) {
     res.status(400).json({ error: "Email and username are required" });
     return;

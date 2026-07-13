@@ -18,8 +18,17 @@ import { Badge } from "@/components/ui/badge";
 const profileSchema = z.object({
   email: z.string().email("Invalid email address"),
   phone: z.string().optional().or(z.literal("")),
+  currentPassword: z.string().optional().or(z.literal("")),
   password: z.string().optional().or(z.literal("")),
   confirmPassword: z.string().optional().or(z.literal("")),
+}).refine((data) => {
+  if (data.password && data.password.length > 0) {
+    return !!data.currentPassword && data.currentPassword.length > 0;
+  }
+  return true;
+}, {
+  message: "Current password is required to set a new password",
+  path: ["currentPassword"]
 }).refine((data) => {
   if (data.password && data.password.length > 0) {
     return data.password.length >= 6;
@@ -49,6 +58,7 @@ export default function Profile() {
     defaultValues: {
       email: "",
       phone: "",
+      currentPassword: "",
       password: "",
       confirmPassword: "",
     },
@@ -60,6 +70,7 @@ export default function Profile() {
       form.reset({
         email: user.email || "",
         phone: (user as any).phone || "",
+        currentPassword: "",
         password: "",
         confirmPassword: "",
       });
@@ -76,6 +87,7 @@ export default function Profile() {
         body: JSON.stringify({
           email: data.email,
           phone: data.phone || null,
+          currentPassword: data.currentPassword || null,
           password: data.password || null,
         }),
       });
@@ -89,6 +101,7 @@ export default function Profile() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: getGetCurrentUserQueryKey() });
       toast.success("Profile updated successfully!");
+      form.setValue("currentPassword", "");
       form.setValue("password", "");
       form.setValue("confirmPassword", "");
     },
@@ -183,7 +196,21 @@ export default function Profile() {
                       Change Password
                     </h3>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="currentPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-slate-700 dark:text-slate-300 font-semibold">Current Password</FormLabel>
+                            <FormControl>
+                              <Input type="password" className="h-11" placeholder="Enter current password" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
                       <FormField
                         control={form.control}
                         name="password"

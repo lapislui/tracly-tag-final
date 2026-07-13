@@ -11,8 +11,34 @@ import {
   customerScansTable,
 } from "@workspace/db";
 import { GenerateCodesBody, MapCodeBody } from "@workspace/api-zod";
-import { requireAuth, requireModule } from "../lib/session";
-import { generateUnitCode, generateSsccCode, parseGs1Code } from "../lib/gs1";
+import { requireAuth, requireModule } from '../lib/session.js';
+import { generateUnitCode, generateSsccCode, parseGs1Code } from '../lib/gs1.js';
+
+function gstinToGtin(input: string): string {
+  if (!input) return "00000000000000";
+  const clean = input.replace(/\D/g, "");
+  if (clean.length === 13 || clean.length === 14) {
+    const padded = clean.padStart(14, "0").slice(0, 14);
+    const digits = padded.slice(0, 13).split("").map(Number);
+    let sum = 0;
+    for (let i = 0; i < 13; i++) {
+      const weight = i % 2 === 0 ? 3 : 1;
+      sum += digits[i] * weight;
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    return padded.slice(0, 13) + checkDigit;
+  }
+  
+  const padded = clean.padEnd(13, "0").slice(0, 13);
+  const nums = padded.split("").map(Number);
+  let sum = 0;
+  for (let i = 0; i < 13; i++) {
+    const weight = i % 2 === 0 ? 3 : 1;
+    sum += nums[i] * weight;
+  }
+  const cd = (10 - (sum % 10)) % 10;
+  return padded + cd;
+}
 
 const router: IRouter = Router();
 
@@ -50,17 +76,38 @@ router.get("/codes/debug/recent", async (_req, res): Promise<void> => {
 });
 
 const getCityFromZip = (zip: string) => {
-  const cleanZip = zip.trim().toLowerCase();
-  if (cleanZip.startsWith("400") || cleanZip === "mumbai") return "Mumbai";
-  if (cleanZip.startsWith("110") || cleanZip === "delhi" || cleanZip === "new delhi") return "New Delhi";
-  if (cleanZip.startsWith("600") || cleanZip === "chennai") return "Chennai";
-  if (cleanZip.startsWith("500") || cleanZip === "hyderabad") return "Hyderabad";
-  if (cleanZip.startsWith("560") || cleanZip === "bangalore") return "Bengaluru";
-  if (cleanZip.startsWith("100") || cleanZip === "ny" || cleanZip === "new york") return "New York";
-  if (cleanZip === "singapore" || (cleanZip.length === 6 && !isNaN(Number(cleanZip)))) return "Singapore";
-  if (cleanZip === "dubai" || cleanZip.startsWith("dxb")) return "Dubai";
+  const cleanZip = String(zip || "").toLowerCase().trim();
   
-  const defaultCities = ["Mumbai", "Singapore", "Dubai", "New Delhi", "Mumbai"];
+  if (cleanZip.includes("mumbai")) return "Mumbai";
+  if (cleanZip.includes("pune")) return "Pune";
+  if (cleanZip.includes("delhi") || cleanZip.includes("new delhi")) return "New Delhi";
+  if (cleanZip.includes("chennai")) return "Chennai";
+  if (cleanZip.includes("hyderabad")) return "Hyderabad";
+  if (cleanZip.includes("bangalore") || cleanZip.includes("bengaluru")) return "Bengaluru";
+  if (cleanZip.includes("new york") || cleanZip.includes(" ny")) return "New York";
+  if (cleanZip.includes("singapore")) return "Singapore";
+  if (cleanZip.includes("dubai")) return "Dubai";
+
+  // Fallbacks for zip code prefixes
+  if (cleanZip.startsWith("411")) return "Pune";
+  if (cleanZip.startsWith("400")) return "Mumbai";
+  if (cleanZip.startsWith("110")) return "New Delhi";
+  if (cleanZip.startsWith("600")) return "Chennai";
+  if (cleanZip.startsWith("500")) return "Hyderabad";
+  if (cleanZip.startsWith("560")) return "Bengaluru";
+  if (cleanZip.startsWith("100")) return "New York";
+  if (cleanZip.length === 6 && !isNaN(Number(cleanZip))) return "Singapore";
+  
+  // Try to parse from a comma separated address
+  const parts = cleanZip.split(",");
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed && isNaN(Number(trimmed)) && trimmed.length > 2) {
+      return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    }
+  }
+
+  const defaultCities = ["Mumbai", "Singapore", "Dubai", "New Delhi", "Pune"];
   let hash = 0;
   for (let i = 0; i < cleanZip.length; i++) {
     hash = cleanZip.charCodeAt(i) + ((hash << 5) - hash);
@@ -159,6 +206,53 @@ router.get("/codes/public/:serial", async (req, res): Promise<void> => {
     } else if (searchSerial.includes(":")) {
       const parts = searchSerial.split(":");
       searchSerial = parts[parts.length - 1] || searchSerial;
+    }
+
+    // Extract actual serial/SSCC from new format: <gst/gtin>-<expiry>-<batch>-<serial>
+    if (searchSerial.includes("-")) {
+      const parts = searchSerial.split("-");
+      if (parts.length >= 4) {
+        const potentialSerial = parts[parts.length - 1];
+        if (potentialSerial && potentialSerial.length >= 6 && !potentialSerial.includes(" ")) {
+          const matches = await db
+            .select({ id: codesTable.id })
+            .from(codesTable)
+            .where(eq(codesTable.serialNumber, potentialSerial))
+            .limit(1);
+          if (matches.length > 0) {
+            searchSerial = potentialSerial;
+            console.log(`[Public Verify] Normalized dash-separated URL to serial: "${searchSerial}"`);
+          }
+        }
+      }
+    }
+
+    // Extract actual serial/SSCC from concatenated product string if formatted with (21) or (00)
+    if (searchSerial.includes("-")) {
+      const parts = searchSerial.split("-");
+      const serialIndex = parts.findIndex(p => p.startsWith("21"));
+      if (serialIndex > -1) {
+        searchSerial = parts.slice(serialIndex).join("-").substring(2);
+      } else {
+        const ssccIndex = parts.findIndex(p => p.startsWith("00"));
+        if (ssccIndex > -1) {
+          searchSerial = parts.slice(ssccIndex).join("-").substring(2);
+        }
+      }
+    } else if (searchSerial.includes("(21)")) {
+      const match = searchSerial.match(/\(21\)([^()]+)/);
+      if (match && match[1]) {
+        searchSerial = match[1];
+      }
+    } else if (searchSerial.includes("(00)")) {
+      const match = searchSerial.match(/\(00\)([^()]+)/);
+      if (match && match[1]) {
+        searchSerial = match[1];
+      }
+    } else if (searchSerial.startsWith("01") && searchSerial.length >= 18) {
+      searchSerial = searchSerial.substring(18);
+    } else if (searchSerial.startsWith("00") && searchSerial.length >= 20) {
+      searchSerial = searchSerial.substring(2);
     }
     
     console.log(`[Public Verify] Searching for: "${serial}" (normalized: "${searchSerial}")`);
@@ -384,13 +478,18 @@ router.post("/codes", requireAuth, requireModule("generate_codes"), async (req, 
       id: batchesTable.id,
       productId: batchesTable.productId,
       batchNumber: batchesTable.batchNumber,
-      expiryDate: batchesTable.expiryDate,
+      batchExpiryDate: batchesTable.expiryDate,
+      batchMfgDate: batchesTable.mfgDate,
+      productExpiryDate: productsTable.expiryDate,
       gtin: productsTable.gtin,
       isGs1Compliant: productsTable.isGs1Compliant,
       companyId: productsTable.companyId,
+      companyGstin: companiesTable.gstin,
+      companyPrefix: companiesTable.companyPrefix,
     })
     .from(batchesTable)
     .innerJoin(productsTable, eq(batchesTable.productId, productsTable.id))
+    .leftJoin(companiesTable, eq(productsTable.companyId, companiesTable.id))
     .where(eq(batchesTable.id, parsed.data.batchId));
 
   if (!batch) {
@@ -412,10 +511,13 @@ router.post("/codes", requireAuth, requireModule("generate_codes"), async (req, 
   const inserts = [];
   for (let i = 0; i < parsed.data.quantity; i++) {
     if (isUnitLevel) {
-      if (batch.isGs1Compliant && batch.gtin) {
+      const gtinOrGst = batch.companyGstin || batch.gtin;
+      if (batch.isGs1Compliant && gtinOrGst) {
+        const gtinValue = gstinToGtin(gtinOrGst);
+        const expiryValue = batch.batchExpiryDate || batch.productExpiryDate || "";
         const { raw, serial } = generateUnitCode({
-          gtin: batch.gtin,
-          expiry: batch.expiryDate,
+          gtin: gtinValue,
+          expiry: expiryValue,
           batch: batch.batchNumber,
         });
         inserts.push({
@@ -439,8 +541,11 @@ router.post("/codes", requireAuth, requireModule("generate_codes"), async (req, 
         });
       }
     } else {
-      if (batch.isGs1Compliant && batch.gtin) {
-        const { raw, sscc } = generateSsccCode(batch.gtin.slice(1, 8), i);
+      const gtinOrGst = batch.companyGstin || batch.gtin;
+      if (batch.isGs1Compliant && gtinOrGst) {
+        const gtinValue = gstinToGtin(gtinOrGst);
+        const prefixToUse = batch.companyPrefix || gtinValue.slice(1, 8) || "8901234";
+        const { raw, sscc } = generateSsccCode(prefixToUse, i);
         inserts.push({
           productId: batch.productId,
           batchId: batch.id,

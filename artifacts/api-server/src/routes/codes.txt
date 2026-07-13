@@ -1,0 +1,1047 @@
+import { useState, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
+import { 
+  useGenerateCodes, 
+  useListBatches, 
+  useListProducts,
+  useGetProductReport, 
+  getGetProductReportQueryKey,
+  getListCodesQueryKey,
+  useGetCurrentUser
+} from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { toast } from "sonner";
+import { 
+  Search, 
+  Loader2, 
+  ChevronRight, 
+  Download, 
+  Plus, 
+  ChevronLeft, 
+  RotateCcw,
+  Barcode,
+  Eye,
+  Copy,
+  Grid,
+  List,
+  Link as LinkIcon
+} from "lucide-react";
+import { format } from "date-fns";
+
+import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import bwipjs from "bwip-js";
+
+function fixGtinCheckDigit(gtin: string): string {
+  if (!gtin) return "";
+  let digitsOnly = gtin.replace(/\D/g, "");
+  if (digitsOnly.length < 14) {
+    digitsOnly = digitsOnly.padStart(14, "0");
+  } else if (digitsOnly.length > 14) {
+    digitsOnly = digitsOnly.slice(0, 14);
+  }
+  
+  const digits = digitsOnly.slice(0, 13).split("").map(Number);
+  let sum = 0;
+  for (let i = 0; i < 13; i++) {
+    const weight = i % 2 === 0 ? 3 : 1;
+    sum += digits[i] * weight;
+  }
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return digitsOnly.slice(0, 13) + checkDigit;
+}
+
+function fixSsccCheckDigit(sscc: string): string {
+  if (!sscc) return "";
+  let digitsOnly = sscc.replace(/\D/g, "");
+  if (digitsOnly.length < 18) {
+    digitsOnly = digitsOnly.padStart(18, "0");
+  } else if (digitsOnly.length > 18) {
+    digitsOnly = digitsOnly.slice(0, 18);
+  }
+  
+  const digits = digitsOnly.slice(0, 17).split("").map(Number);
+  let sum = 0;
+  for (let i = 0; i < 17; i++) {
+    const weight = i % 2 === 0 ? 3 : 1;
+    sum += digits[i] * weight;
+  }
+  const checkDigit = (10 - (sum % 10)) % 10;
+  return digitsOnly.slice(0, 17) + checkDigit;
+}
+
+function DataMatrixBarcode({ rawString, size }: { rawString: string; size: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    
+    try {
+      const parsed = parseGs1Raw(rawString);
+      let barcodeType = "datamatrix";
+      let barcodeText = rawString;
+
+      if (!parsed.fallback && !parsed.error) {
+        if (parsed.sscc) {
+          const validSscc = fixSsccCheckDigit(parsed.sscc);
+          barcodeText = `(00)${validSscc}`;
+          barcodeType = "gs1datamatrix";
+        } else if (parsed.gtin) {
+          const validGtin = fixGtinCheckDigit(parsed.gtin);
+          barcodeText = `(01)${validGtin}(21)${parsed.serial || ""}(10)${parsed.batch || ""}(17)${parsed.expiry || ""}`;
+          barcodeType = "gs1datamatrix";
+        }
+      }
+
+      bwipjs.toCanvas(canvasRef.current, {
+        bcid: barcodeType,
+        text: barcodeText,
+        scale: 3,
+        height: 10,
+        width: 10,
+        includetext: false,
+      });
+    } catch (err) {
+      console.error("Failed to render barcode locally via bwip-js:", err);
+      const ctx = canvasRef.current.getContext("2d");
+      if (ctx) {
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        ctx.fillStyle = "#ef4444";
+        ctx.font = "8px monospace";
+        ctx.fillText("Error", 5, 12);
+      }
+    }
+  }, [rawString]);
+
+  return (
+    <canvas 
+      ref={canvasRef} 
+      className="max-w-full aspect-square"
+      style={{ width: `${size}px`, height: `${size}px` }} 
+    />
+  );
+}
+
+function parseGs1Raw(raw: string) {
+  if (!raw) return {};
+  if (raw.startsWith("INVALID_") || raw.startsWith("SH-")) {
+    return { error: raw };
+  }
+  if (raw.startsWith("00")) {
+    return { sscc: raw.substring(2) };
+  }
+  
+  // Replace separators with a pipe for easy splitting
+  const clean = raw.replace(/<GS>/g, "|").replace(/\u001d/g, "|").replace(/\u00e8/g, "|");
+  
+  let gtin = "";
+  let serial = "";
+  let batch = "";
+  let expiry = "";
+  
+  let pos = 0;
+  while (pos < clean.length) {
+    const ai = clean.substring(pos, pos + 2);
+    pos += 2;
+    if (ai === "01") {
+      gtin = clean.substring(pos, pos + 14);
+      pos += 14;
+    } else if (ai === "21") {
+      const nextPipe = clean.indexOf("|", pos);
+      const end = nextPipe > -1 ? nextPipe : clean.length;
+      serial = clean.substring(pos, end);
+      pos = end + 1;
+    } else if (ai === "10") {
+      const nextPipe = clean.indexOf("|", pos);
+      const end = nextPipe > -1 ? nextPipe : clean.length;
+      batch = clean.substring(pos, end);
+      pos = end + 1;
+    } else if (ai === "17") {
+      expiry = clean.substring(pos, pos + 6);
+      pos += 6;
+    } else {
+      break;
+    }
+  }
+  
+  if (!gtin && !serial && !batch && !expiry) {
+    return { fallback: raw };
+  }
+  
+  return { gtin, serial, batch, expiry };
+}
+
+const renderGs1Text = (raw: string, companyGstin?: string) => {
+  const parsed = parseGs1Raw(raw);
+  if (parsed.fallback) {
+    return <div className="text-xs font-bold font-mono text-midnight-navy truncate">{parsed.fallback}</div>;
+  }
+  if (parsed.error) {
+    return <div className="text-xs font-bold font-mono text-red-500 truncate">{parsed.error}</div>;
+  }
+  if (parsed.sscc) {
+    const validSscc = fixSsccCheckDigit(parsed.sscc);
+    return <div className="text-xs font-bold font-mono text-midnight-navy">(00){validSscc}</div>;
+  }
+  
+  const displayGtin = companyGstin || (parsed.gtin ? fixGtinCheckDigit(parsed.gtin) : "");
+  const expiryYear = parsed.expiry && parsed.expiry.length >= 2 ? `20${parsed.expiry.substring(0, 2)}` : "";
+  const concatenated = `(01)${displayGtin}-(10)${parsed.batch || ""}-(17)${expiryYear}-(21)${parsed.serial || ""}`;
+
+  return (
+    <div className="text-[10px] font-bold font-mono text-midnight-navy text-left space-y-0.5 w-full leading-normal">
+      {displayGtin && <div>(01){displayGtin}</div>}
+      {parsed.serial && <div>(21){parsed.serial}</div>}
+      {parsed.batch && <div>(10){parsed.batch}</div>}
+      {parsed.expiry && <div>(17){parsed.expiry}</div>}
+      <div className="mt-1 border-t border-slate-200/50 pt-0.5 text-[8.5px] text-[#434655] truncate" title={concatenated}>
+        {concatenated}
+      </div>
+    </div>
+  );
+};
+
+// Helper function for building barcode URLs removed in favor of local client-side bwip-js rendering
+
+
+const generateSchema = z.object({
+  productId: z.coerce.number().min(1, "Product is required"),
+  batchId: z.coerce.number().min(1, "Batch is required"),
+  level: z.enum(["unit", "l1", "l2", "shipper", "pallet"]),
+  quantity: z.coerce.number().min(1, "Quantity must be at least 1").max(5000, "Maximum 5,000 units"),
+});
+
+export default function Codes() {
+  const { data: user } = useGetCurrentUser();
+  const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
+  const [generateDialogOpen, setGenerateDialogOpen] = useState(false);
+  const [downloadingBatchId, setDownloadingBatchId] = useState<number | null>(null);
+  const [viewCodesDialogOpen, setViewCodesDialogOpen] = useState(false);
+  const [viewBatchId, setViewBatchId] = useState<number | null>(null);
+  const [viewBatchNumber, setViewBatchNumber] = useState<string>("");
+  const [viewCodesList, setViewCodesList] = useState<any[]>([]);
+  const [loadingViewCodes, setLoadingViewCodes] = useState(false);
+  const [gridCols, setGridCols] = useState(3);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  const handleViewBatch = async (batchId: number, batchNumber: string) => {
+    setViewBatchId(batchId);
+    setViewBatchNumber(batchNumber);
+    setViewCodesDialogOpen(true);
+    setLoadingViewCodes(true);
+    try {
+      const response = await fetch(`/api/codes?batchId=${batchId}&limit=5000`);
+      if (!response.ok) throw new Error("Failed to fetch codes");
+      const codesList = await response.json();
+      setViewCodesList(codesList || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load codes for batch");
+    } finally {
+      setLoadingViewCodes(false);
+    }
+  };
+
+  // Filters State
+  const [search, setSearch] = useState("");
+  const [filterProductId, setFilterProductId] = useState<number | undefined>();
+  const [filterBatchId, setFilterBatchId] = useState<number | undefined>();
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  // API Data Hooks
+  const { data: products = [] } = useListProducts();
+  const { data: batches = [] } = useListBatches({});
+  const { data: reportData = [], isLoading: isLoadingReport } = useGetProductReport();
+  const generateCodes = useGenerateCodes();
+
+  // Reset all filters
+  const handleClearFilters = () => {
+    setSearch("");
+    setFilterProductId(undefined);
+    setFilterBatchId(undefined);
+    setCurrentPage(1);
+    toast.success("Filters reset successfully");
+  };
+
+  // Helper to format creation dates from batches
+  const getBatchCreatedAt = (batchId: number) => {
+    const batch = batches.find(b => b.id === batchId);
+    if (!batch?.createdAt) return "N/A";
+    try {
+      return format(new Date(batch.createdAt), "dd MMM yyyy, HH:mm");
+    } catch {
+      return batch.createdAt;
+    }
+  };
+
+  // Handle single batch codes download as CSV
+  const handleDownloadBatch = async (batchId: number, batchNumber: string) => {
+    setDownloadingBatchId(batchId);
+    try {
+      const response = await fetch(`/api/codes?batchId=${batchId}&limit=5000`);
+      if (!response.ok) throw new Error("Failed to fetch codes");
+      const codesList = await response.json();
+      
+      if (!codesList || codesList.length === 0) {
+        toast.error("No codes found in this batch to download");
+        return;
+      }
+
+      // Convert to CSV
+      const headers = ["Serial Number / SSCC", "Level", "Raw GS1 String", "Created At", "Mapped", "Location"];
+      const csvContent = [
+        headers.join(","),
+        ...codesList.map((c: any) => [
+          `"${c.serialNumber || c.ssccCode || ''}"`,
+          `"${c.level}"`,
+          `"${c.rawString}"`,
+          `"${c.createdAt}"`,
+          `"${c.mapped ? 'Yes' : 'No'}"`,
+          `"${c.locationName || ''}"`
+        ].join(","))
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `codes_batch_${batchNumber}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success(`Downloaded ${codesList.length} codes successfully`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to download codes for batch");
+    } finally {
+      setDownloadingBatchId(null);
+    }
+  };
+
+  // Export current summary table view as CSV
+  const handleExportReport = () => {
+    if (filteredReport.length === 0) {
+      toast.error("No data available to export");
+      return;
+    }
+    const headers = ["Product Name", "SKU ID", "Batch", "Total QR Codes", "Created Date"];
+    const csvContent = [
+      headers.join(","),
+      ...filteredReport.map(row => [
+        `"${row.productName}"`,
+        `"${row.size}"`,
+        `"${row.batchNumber}"`,
+        `"${row.total}"`,
+        `"${getBatchCreatedAt(row.batchId)}"`
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `generate_codes_summary_report.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Summary report exported successfully");
+  };
+
+  // Form definition for Generate Codes
+  const form = useForm<z.infer<typeof generateSchema>>({
+    resolver: zodResolver(generateSchema),
+    defaultValues: { level: "unit", quantity: 100 },
+  });
+
+  const onGenerateSubmit = (values: z.infer<typeof generateSchema>) => {
+    const { productId, ...payload } = values;
+    generateCodes.mutate({ data: payload as any }, {
+      onSuccess: (res) => {
+        queryClient.invalidateQueries({ queryKey: getListCodesQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetProductReportQueryKey() });
+        toast.success(`Generated ${res.generated} codes`);
+        form.reset({ ...values, quantity: 100 });
+        setGenerateDialogOpen(false);
+      },
+      onError: (error: any) => {
+        toast.error(error?.data?.error || "Failed to generate codes");
+      }
+    });
+  };
+
+  // Frontend filtering logic
+  const filteredReport = reportData.filter((row) => {
+    if (filterProductId && row.productId !== filterProductId) return false;
+    if (filterBatchId && row.batchId !== filterBatchId) return false;
+    if (search) {
+      const searchLower = search.toLowerCase();
+      const matchProduct = row.productName?.toLowerCase().includes(searchLower);
+      const matchBatch = row.batchNumber?.toLowerCase().includes(searchLower);
+      const matchSku = row.size?.toLowerCase().includes(searchLower);
+      return matchProduct || matchBatch || matchSku;
+    }
+    return true;
+  });
+
+  // Pagination calculation
+  const totalRecords = filteredReport.length;
+  const totalPages = Math.max(1, Math.ceil(totalRecords / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalRecords);
+  const currentItems = filteredReport.slice(startIndex, endIndex);
+
+  return (
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="flex items-end justify-between mb-8">
+        <div>
+          <nav className="flex items-center gap-2 text-outline font-bold text-[10px] mb-2 uppercase tracking-widest text-[#737686]">
+            <span>Industrial Panel</span>
+            <ChevronRight className="h-3 w-3 text-slate-400" />
+            <span className="text-safety-blue">Generate Product Codes</span>
+          </nav>
+          <h2 className="text-3xl font-bold text-midnight-navy tracking-tight">Generate Product Codes</h2>
+          <p className="text-sm text-[#434655] mt-1">Manage and track unique serialization codes for product inventory.</p>
+        </div>
+        <Button 
+          onClick={() => setLocation("/production/codes/new")}
+          className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#2563EB]/90 text-white px-6 py-3 rounded-lg font-bold shadow-md transform active:scale-95 transition-all cursor-pointer h-11"
+        >
+          <Plus className="h-4 w-4" />
+          GENERATE NEW
+        </Button>
+      </div>
+
+      {/* Filters Section */}
+      <div className="bg-white border border-[#E2E8F0] rounded-lg p-4 flex flex-wrap items-center gap-4 shadow-sm">
+        <div className="flex-1 min-w-[240px]">
+          <label className="font-bold text-[10px] text-[#737686] mb-1 block uppercase">Search Unit ID</label>
+          <div className="relative">
+            <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737686] h-4 w-4" />
+            <Input 
+              className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg py-2 pl-10 pr-4 text-sm focus:border-safety-blue outline-none transition-all h-10 font-mono" 
+              placeholder="e.g. BTC-2024-X91" 
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="flex-1 min-w-[240px]">
+          <label className="font-bold text-[10px] text-[#737686] mb-1 block uppercase">Product Name/ID</label>
+          <Select 
+            value={filterProductId?.toString() || "all"} 
+            onValueChange={(v) => {
+              setFilterProductId(v === "all" ? undefined : parseInt(v));
+              setFilterBatchId(undefined); // Reset batch when product changes
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg h-10 text-sm">
+              <SelectValue placeholder="All Products" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Products</SelectItem>
+              {products.map(p => (
+                <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex-1 min-w-[240px]">
+          <label className="font-bold text-[10px] text-[#737686] mb-1 block uppercase">Batch</label>
+          <Select 
+            value={filterBatchId?.toString() || "all"} 
+            onValueChange={(v) => {
+              setFilterBatchId(v === "all" ? undefined : parseInt(v));
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg h-10 text-sm">
+              <SelectValue placeholder="All Batches" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Batches</SelectItem>
+              {batches
+                .filter(b => !filterProductId || b.productId === filterProductId)
+                .map(b => (
+                  <SelectItem key={b.id} value={b.id.toString()}>{b.batchNumber}</SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-end h-10 mt-5">
+          <Button 
+            variant="outline" 
+            onClick={handleClearFilters}
+            className="h-10 w-10 p-0 border border-[#E2E8F0] rounded-lg hover:bg-slate-50 flex items-center justify-center cursor-pointer"
+            title="Reset Filters"
+          >
+            <RotateCcw className="h-4 w-4 text-[#434655]" />
+          </Button>
+        </div>
+
+        <div className="flex items-end h-10 ml-auto mt-5">
+          <Button 
+            variant="outline" 
+            onClick={handleExportReport}
+            className="flex items-center gap-2 h-10 px-4 border border-[#E2E8F0] rounded-lg font-bold text-midnight-navy hover:bg-slate-50 cursor-pointer"
+          >
+            <Download className="h-4 w-4" />
+            Export XLSX
+          </Button>
+        </div>
+      </div>
+
+      {/* Data Table Card */}
+      <div className="bg-white border border-[#E2E8F0] rounded-lg shadow-sm overflow-hidden mb-8">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-[#F8FAFC] border-b border-[#E2E8F0]">
+                <TableHead className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap">PRODUCT NAME</TableHead>
+                <TableHead className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap">SKU ID</TableHead>
+                <TableHead className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap">BATCH</TableHead>
+                <TableHead className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-center">TOTAL QR CODES</TableHead>
+                <TableHead className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap">CREATED DATE</TableHead>
+                <TableHead className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-right">ACTION</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoadingReport ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#2563EB]" />
+                  </TableCell>
+                </TableRow>
+              ) : currentItems.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-12 text-[#737686] text-sm">
+                    No batches found matching criteria.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentItems.map((row, i) => (
+                  <TableRow key={i} className="hover:bg-slate-50 transition-colors border-b border-[#E2E8F0] align-middle">
+                    <TableCell className="px-6 py-4 text-sm font-semibold text-midnight-navy">{row.productName}</TableCell>
+                    <TableCell className="px-6 py-4 text-sm text-[#434655]">{row.size}</TableCell>
+                    <TableCell className="px-6 py-4 text-sm text-[#434655] font-mono">{row.batchNumber}</TableCell>
+                    <TableCell className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-[#dae2fd] text-[#131b2e]">
+                        {Number(row.total).toLocaleString()}
+                      </span>
+                    </TableCell>
+                    <TableCell className="px-6 py-4 text-sm text-[#434655]">{getBatchCreatedAt(row.batchId)}</TableCell>
+                    <TableCell className="px-6 py-4 text-right flex items-center justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleViewBatch(row.batchId, row.batchNumber)}
+                        className="h-8 w-8 text-[#2563EB] hover:bg-[#2563EB]/10 rounded-lg transition-all cursor-pointer"
+                        title="View batch QR codes"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        disabled={downloadingBatchId === row.batchId}
+                        onClick={() => handleDownloadBatch(row.batchId, row.batchNumber)}
+                        className="h-8 w-8 text-[#2563EB] hover:bg-[#2563EB]/10 rounded-lg transition-all cursor-pointer"
+                        title="Download codes as CSV"
+                      >
+                        {downloadingBatchId === row.batchId ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-[#2563EB]" />
+                        ) : (
+                          <Download className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="px-6 py-4 bg-[#F8FAFC] border-t border-[#E2E8F0] flex items-center justify-between">
+          <span className="text-sm text-[#434655]">
+            Showing <span className="font-semibold text-midnight-navy">{totalRecords > 0 ? startIndex + 1 : 0} to {endIndex}</span> of <span className="font-semibold text-midnight-navy">{totalRecords}</span> records
+          </span>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-8 w-8 disabled:opacity-30 cursor-pointer" 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }).map((_, pageIdx) => {
+                const pageNum = pageIdx + 1;
+                if (totalPages > 6 && pageNum !== 1 && pageNum !== totalPages && Math.abs(pageNum - currentPage) > 1) {
+                  if (pageNum === 2 && currentPage > 3) return <span key={pageNum} className="px-1 text-sm">...</span>;
+                  if (pageNum === totalPages - 1 && currentPage < totalPages - 2) return <span key={pageNum} className="px-1 text-sm">...</span>;
+                  return null;
+                }
+                return (
+                  <Button 
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-8 h-8 p-0 font-bold text-sm cursor-pointer ${
+                      currentPage === pageNum 
+                        ? "bg-[#2563EB] hover:bg-[#2563EB]/90 text-white" 
+                        : "bg-transparent text-[#434655] hover:bg-slate-100 border border-transparent hover:border-[#E2E8F0]"
+                    }`}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              className="h-8 w-8 disabled:opacity-30 cursor-pointer" 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* dialog modal for Generate New */}
+      <Dialog open={generateDialogOpen} onOpenChange={setGenerateDialogOpen}>
+        <DialogContent className="sm:max-w-[550px] bg-white border border-[#E2E8F0] rounded-xl shadow-lg">
+          <DialogHeader className="border-b border-[#E2E8F0] pb-3">
+            <DialogTitle className="text-lg font-bold text-midnight-navy">Generate New Serialization Codes</DialogTitle>
+            <DialogDescription className="text-sm text-[#434655]">
+              Select product details and quantity to initialize new secure serialization codes.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onGenerateSubmit)} className="space-y-6 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                
+                {/* Product Select */}
+                <FormField control={form.control} name="productId" render={({ field }) => (
+                  <FormItem className="space-y-1.5 col-span-2">
+                    <FormLabel className="text-[10px] font-bold text-[#737686] uppercase tracking-widest flex items-center gap-1">
+                      Product Name <span className="text-red-500">*</span>
+                    </FormLabel>
+                    <Select 
+                      onValueChange={(val) => {
+                        field.onChange(Number(val));
+                        form.setValue("batchId", undefined as any);
+                      }} 
+                      value={field.value?.toString() || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-10 rounded-lg focus:ring-0 text-sm text-[#0F172A]">
+                          <SelectValue placeholder="Select Product" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {products.map(p => (
+                          <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* SKU Select (linked to product) */}
+                <FormField control={form.control} name="productId" render={({ field }) => (
+                  <FormItem className="space-y-1.5 col-span-2">
+                    <FormLabel className="text-[10px] font-bold text-[#737686] uppercase tracking-widest flex items-center gap-1">
+                      SKU ID <span className="text-red-500">*</span>
+                    </FormLabel>
+                    <Select 
+                      onValueChange={(val) => {
+                        field.onChange(Number(val));
+                        form.setValue("batchId", undefined as any);
+                      }} 
+                      value={field.value?.toString() || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-10 rounded-lg focus:ring-0 text-sm text-[#0F172A]">
+                          <SelectValue placeholder="Select SKU" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {products.map(p => (
+                          <SelectItem key={p.id} value={p.id.toString()}>{p.skuId} ({p.skuSize || "No Size"})</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Batch No Select */}
+                <FormField control={form.control} name="batchId" render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel className="text-[10px] font-bold text-[#737686] uppercase tracking-widest flex items-center gap-1">
+                      Batch No <span className="text-red-500">*</span>
+                    </FormLabel>
+                    <Select 
+                      onValueChange={(val) => field.onChange(Number(val))} 
+                      value={field.value?.toString() || ""}
+                      disabled={!form.watch("productId")}
+                    >
+                      <FormControl>
+                        <SelectTrigger className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-10 rounded-lg focus:ring-0 text-sm text-[#0F172A] disabled:opacity-50">
+                          <SelectValue placeholder="Select Active Batch" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {batches
+                          .filter(b => b.productId === Number(form.watch("productId")))
+                          .map(b => (
+                            <SelectItem key={b.id} value={b.id.toString()}>
+                              {b.batchNumber}
+                            </SelectItem>
+                          ))
+                        }
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Packaging Level */}
+                <FormField control={form.control} name="level" render={({ field }) => (
+                  <FormItem className="space-y-1.5">
+                    <FormLabel className="text-[10px] font-bold text-[#737686] uppercase tracking-widest flex items-center gap-1">
+                      Packaging Level <span className="text-red-500">*</span>
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-10 rounded-lg focus:ring-0 text-sm text-[#0F172A]">
+                          <SelectValue placeholder="Select Level" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="unit">Unit</SelectItem>
+                        <SelectItem value="l1">Level 1 (L1)</SelectItem>
+                        <SelectItem value="l2">Level 2 (L2)</SelectItem>
+                        <SelectItem value="shipper">Shipper</SelectItem>
+                        <SelectItem value="pallet">Pallet</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                {/* Quantity */}
+                <FormField control={form.control} name="quantity" render={({ field }) => (
+                  <FormItem className="space-y-1.5 col-span-2">
+                    <FormLabel className="text-[10px] font-bold text-[#737686] uppercase tracking-widest flex items-center gap-1">
+                      Quantity of Code <span className="text-red-500">*</span>
+                    </FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        className="w-full bg-[#F8FAFC] border border-[#E2E8F0] h-10 rounded-lg focus:border-[#2563EB] focus:ring-0 font-mono text-sm" 
+                        placeholder="Enter quantity (e.g. 100)" 
+                        {...field} 
+                      />
+                    </FormControl>
+                    <p className="text-[10px] text-slate-400 italic">Maximum 5,000 units per serialization request.</p>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+              </div>
+              
+              <DialogFooter className="pt-4 border-t border-[#E2E8F0] flex gap-2">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setGenerateDialogOpen(false)} 
+                  className="cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="bg-[#2563EB] hover:bg-[#2563EB]/90 text-white font-semibold cursor-pointer h-10" 
+                  disabled={generateCodes.isPending}
+                >
+                  {generateCodes.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Generate Codes
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* dialog modal for View Batch QR Codes */}
+      <Dialog open={viewCodesDialogOpen} onOpenChange={setViewCodesDialogOpen}>
+        <DialogContent className="sm:max-w-[850px] max-h-[85vh] overflow-y-auto bg-white border border-[#E2E8F0] rounded-xl shadow-lg flex flex-col p-6 font-sans">
+          <DialogHeader className="border-b border-[#E2E8F0] pb-3 shrink-0 flex flex-row items-center justify-between gap-4">
+            <div>
+              <DialogTitle className="text-lg font-bold text-midnight-navy">
+                Batch Data Matrix Codes: {viewBatchNumber}
+              </DialogTitle>
+              <DialogDescription className="text-sm text-[#434655]">
+                Showing generated secure verification Data Matrix codes for this production batch.
+              </DialogDescription>
+            </div>
+          </DialogHeader>
+
+          {/* Controls Toolbar */}
+          {!loadingViewCodes && viewCodesList.length > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-4 p-3 border border-[#E2E8F0] rounded-xl bg-slate-50/50 mt-3 shrink-0">
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1.5 border border-[#E2E8F0] rounded-lg p-1 bg-white">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode("grid")}
+                  className={`h-8 px-3 rounded-md font-bold text-xs gap-1.5 cursor-pointer ${
+                    viewMode === "grid" ? "bg-slate-100 text-[#2563EB]" : "text-[#434655] hover:bg-slate-50"
+                  }`}
+                >
+                  <Grid className="h-3.5 w-3.5" />
+                  Grid
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode("list")}
+                  className={`h-8 px-3 rounded-md font-bold text-xs gap-1.5 cursor-pointer ${
+                    viewMode === "list" ? "bg-slate-100 text-[#2563EB]" : "text-[#434655] hover:bg-slate-50"
+                  }`}
+                >
+                  <List className="h-3.5 w-3.5" />
+                  List
+                </Button>
+              </div>
+
+              {/* Grid Columns Slider */}
+              {viewMode === "grid" && (
+                <div className="flex items-center gap-3 min-w-[220px]">
+                  <span className="text-[10px] font-bold text-[#737686] uppercase tracking-wider shrink-0">
+                    Columns: {gridCols}
+                  </span>
+                  <Slider
+                    value={[gridCols]}
+                    onValueChange={(val) => setGridCols(val[0] || 3)}
+                    min={1}
+                    max={6}
+                    step={1}
+                    className="w-32 cursor-pointer"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto min-h-[300px] py-4">
+            {loadingViewCodes ? (
+              <div className="flex flex-col items-center justify-center h-[300px] gap-2">
+                <Loader2 className="h-8 w-8 animate-spin text-safety-blue" />
+                <span className="text-sm text-[#434655] font-medium animate-pulse">Loading Data Matrix codes...</span>
+              </div>
+            ) : viewCodesList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-[300px] text-[#737686] text-sm">
+                No codes found in this batch.
+              </div>
+            ) : viewMode === "grid" ? (
+              <div className={`grid gap-4 ${
+                gridCols === 1 ? "grid-cols-1" :
+                gridCols === 2 ? "grid-cols-2" :
+                gridCols === 3 ? "grid-cols-3" :
+                gridCols === 4 ? "grid-cols-4" :
+                gridCols === 5 ? "grid-cols-5" :
+                "grid-cols-6"
+              }`}>
+                {viewCodesList.map((code) => {
+                  const displayCode = code.serialNumber || code.ssccCode || "";
+                  let prefix = "";
+                  try {
+                    if (code.createdAt) {
+                      const cDate = new Date(code.createdAt);
+                      const dateStr = format(cDate, "yyyyMMdd");
+                      const timeStr = format(cDate, "HHmmss");
+                      const gstin = code.companyGstin || "";
+                      prefix = `${dateStr}_${timeStr}_${gstin}`;
+                    }
+                  } catch (e) {
+                    console.error(e);
+                  }
+                  const qrCodeString = prefix ? `${prefix}::${displayCode}` : displayCode;
+                  let baseOrigin = window.location.origin;
+                  const rawUrl = code.companyUrl || user?.companyUrl;
+                  if (rawUrl) {
+                    let cleaned = rawUrl.trim();
+                    if (!/^https?:\/\//i.test(cleaned)) {
+                      cleaned = `https://${cleaned}`;
+                    }
+                    cleaned = cleaned.replace(/\/+$/, "");
+                    baseOrigin = cleaned;
+                  }
+                  const verificationUrl = `${baseOrigin}/code/${qrCodeString}`;
+                  
+                  return (
+                    <div key={code.id} className="border border-[#E2E8F0] rounded-xl p-3 bg-slate-50/50 flex flex-col items-center gap-2.5 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="p-1.5 bg-white rounded-lg border border-slate-200 flex items-center justify-center w-[130px] h-[130px]">
+                        <DataMatrixBarcode rawString={code.rawString} size={120} />
+                      </div>
+                      <div className="w-full flex items-start justify-between gap-1 px-1 mt-1">
+                        <div className="flex-1 min-w-0">
+                          {renderGs1Text(code.rawString, code.companyGstin)}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-slate-400 hover:text-[#2563EB] hover:bg-slate-100 rounded-md shrink-0 cursor-pointer"
+                          title="Copy raw DataMatrix code"
+                          onClick={() => {
+                            navigator.clipboard.writeText(code.rawString);
+                            toast.success("Raw DataMatrix code copied!");
+                          }}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                      <div className="text-[9px] text-[#737686] font-semibold uppercase tracking-wider text-center w-full mt-1.5">
+                        {code.level}
+                      </div>
+
+                      {/* Clickable verification link under the QR code */}
+                      <a
+                        href={verificationUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[9px] font-semibold text-[#2563EB] hover:underline font-mono break-all flex items-center gap-1 justify-center py-1 px-2 rounded bg-[#2563EB]/5 border border-[#2563EB]/10 transition-colors w-full mt-1.5"
+                        title={verificationUrl}
+                      >
+                        <LinkIcon className="h-2.5 w-2.5 shrink-0" />
+                        <span className="truncate">{verificationUrl.replace(/^https?:\/\//, "")}</span>
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* List View Mode */
+              <div className="space-y-3">
+                {viewCodesList.map((code) => {
+                  const displayCode = code.serialNumber || code.ssccCode || "";
+                  let prefix = "";
+                  try {
+                    if (code.createdAt) {
+                      const cDate = new Date(code.createdAt);
+                      const dateStr = format(cDate, "yyyyMMdd");
+                      const timeStr = format(cDate, "HHmmss");
+                      const gstin = code.companyGstin || "";
+                      prefix = `${dateStr}_${timeStr}_${gstin}`;
+                    }
+                  } catch (e) {
+                    console.error(e);
+                  }
+                  const qrCodeString = prefix ? `${prefix}::${displayCode}` : displayCode;
+                  let baseOrigin = window.location.origin;
+                  const rawUrl = code.companyUrl || user?.companyUrl;
+                  if (rawUrl) {
+                    let cleaned = rawUrl.trim();
+                    if (!/^https?:\/\//i.test(cleaned)) {
+                      cleaned = `https://${cleaned}`;
+                    }
+                    cleaned = cleaned.replace(/\/+$/, "");
+                    baseOrigin = cleaned;
+                  }
+                  const verificationUrl = `${baseOrigin}/code/${qrCodeString}`;
+                  return (
+                    <div key={code.id} className="border border-[#E2E8F0] rounded-xl p-4 bg-slate-50/50 flex flex-row items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="p-1.5 bg-white rounded-lg border border-slate-200 shrink-0 flex items-center justify-center w-[100px] h-[100px]">
+                        <DataMatrixBarcode rawString={code.rawString} size={90} />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            {renderGs1Text(code.rawString, code.companyGstin)}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#dae2fd] text-[#131b2e] uppercase">
+                              {code.level}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-slate-400 hover:text-[#2563EB] hover:bg-slate-100 rounded-md cursor-pointer"
+                              title="Copy raw DataMatrix code"
+                              onClick={() => {
+                                navigator.clipboard.writeText(code.rawString);
+                                toast.success("Raw DataMatrix code copied!");
+                              }}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-1">
+                          <span className="text-[9px] text-[#737686] font-bold uppercase tracking-wider block">Verification Link:</span>
+                          <a
+                            href={verificationUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs font-semibold text-[#2563EB] hover:underline font-mono break-all flex items-center gap-1.5 py-1.5 px-3 rounded-lg bg-[#2563EB]/5 border border-[#2563EB]/10 transition-colors inline-flex max-w-full"
+                            title={verificationUrl}
+                          >
+                            <LinkIcon className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{verificationUrl}</span>
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="pt-4 border-t border-[#E2E8F0] shrink-0">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setViewCodesDialogOpen(false)} 
+              className="cursor-pointer"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

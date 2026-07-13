@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
 import { db, companiesTable } from "@workspace/db";
 import { CreateCompanyBody } from "@workspace/api-zod";
-import { requireAuth, requireRole } from "../lib/session";
+import { requireAuth, requireRole } from '../lib/session.js';
 
 const router: IRouter = Router();
 
@@ -116,7 +116,7 @@ router.get("/companies", async (_req, res): Promise<void> => {
 
 router.post(
   "/companies",
-  requireRole("master"),
+  requireRole("master", "super_master", "admin"),
   async (req, res): Promise<void> => {
     const parsed = CreateCompanyBody.safeParse(req.body);
     if (!parsed.success) {
@@ -144,9 +144,50 @@ router.post(
   },
 );
 
+router.put(
+  "/companies/:id",
+  requireRole("master", "super_master", "admin"),
+  async (req, res): Promise<void> => {
+    const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const id = parseInt(raw ?? "", 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const parsed = CreateCompanyBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const [updated] = await db
+      .update(companiesTable)
+      .set({
+        name: parsed.data.name,
+        email: parsed.data.email,
+        address: parsed.data.address,
+        gstin: parsed.data.gstin !== undefined ? (parsed.data.gstin || null) : undefined,
+        companyUrl: parsed.data.companyUrl !== undefined ? (parsed.data.companyUrl || null) : undefined,
+        pan: parsed.data.pan !== undefined ? (parsed.data.pan || null) : undefined,
+        cin: parsed.data.cin !== undefined ? (parsed.data.cin || null) : undefined,
+        msmeRegistrationNo: parsed.data.msmeRegistrationNo !== undefined ? (parsed.data.msmeRegistrationNo || null) : undefined,
+        fssaiLicenseNo: parsed.data.fssaiLicenseNo !== undefined ? (parsed.data.fssaiLicenseNo || null) : undefined,
+        drugLicenseNo: parsed.data.drugLicenseNo !== undefined ? (parsed.data.drugLicenseNo || null) : undefined,
+        iecCode: parsed.data.iecCode !== undefined ? (parsed.data.iecCode || null) : undefined,
+        companyPrefix: parsed.data.companyPrefix !== undefined ? (parsed.data.companyPrefix || null) : undefined,
+      })
+      .where(eq(companiesTable.id, id))
+      .returning();
+    if (!updated) {
+      res.status(404).json({ error: "Company not found" });
+      return;
+    }
+    res.json(updated);
+  },
+);
+
 router.delete(
   "/companies/:id",
-  requireRole("master"),
+  requireRole("master", "super_master", "admin"),
   async (req, res): Promise<void> => {
     const raw = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const id = parseInt(raw ?? "", 10);
@@ -160,3 +201,4 @@ router.delete(
 );
 
 export default router;
+

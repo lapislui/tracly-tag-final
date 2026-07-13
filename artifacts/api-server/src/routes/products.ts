@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { eq, desc } from "drizzle-orm";
-import { db, productsTable } from "@workspace/db";
+import { db, productsTable, companiesTable } from "@workspace/db";
 import { CreateProductBody } from "@workspace/api-zod";
-import { requireAuth, requireModule } from "../lib/session";
-import { isValidGtin } from "../lib/gs1";
+import { requireAuth, requireModule } from '../lib/session.js';
+import { isValidGtin } from '../lib/gs1.js';
 
 const router: IRouter = Router();
 
@@ -42,25 +42,33 @@ router.post("/products", async (req, res): Promise<void> => {
     return;
   }
 
-  const isGs1Compliant = parsed.data.isGs1Compliant ?? false;
-
-  if (isGs1Compliant) {
-    if (!parsed.data.gtin) {
-      res.status(400).json({ error: "GTIN is required for GS1 compliant products" });
-      return;
-    }
-    if (!isValidGtin(parsed.data.gtin)) {
-      res.status(400).json({ error: "Invalid GTIN check digit" });
-      return;
-    }
-  }
-
   let companyId = req.user!.companyId || ((req.user!.role === "master" || req.user!.role === "super_master") ? (req.body.companyId || req.query.companyId) : null);
   if (!companyId) {
     res
       .status(400)
       .json({ error: "Master must select a company context to add products" });
     return;
+  }
+
+  const isGs1Compliant = parsed.data.isGs1Compliant ?? false;
+
+  if (isGs1Compliant) {
+    if (!parsed.data.gtin) {
+      const [company] = await db
+        .select({ gstin: companiesTable.gstin })
+        .from(companiesTable)
+        .where(eq(companiesTable.id, Number(companyId)));
+
+      if (!company || !company.gstin) {
+        res.status(400).json({ error: "GTIN or Company GST is required for GS1 compliant products" });
+        return;
+      }
+    } else {
+      if (!isValidGtin(parsed.data.gtin)) {
+        res.status(400).json({ error: "Invalid GTIN check digit" });
+        return;
+      }
+    }
   }
 
   const [row] = await db

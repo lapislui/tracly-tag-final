@@ -212,6 +212,29 @@ paths:
       responses:
         "204":
           description: Deleted
+    put:
+      operationId: updateCompany
+      tags: [companies]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCompanyBody"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Company"
+
 
   # ---------- USERS ----------
   /users:
@@ -637,7 +660,7 @@ components:
 
     Role:
       type: string
-      enum: [super_master, master, client_admin, operator]
+      enum: [super_master, master, admin, client_admin, operator]
 
     LoginBody:
       type: object
@@ -819,6 +842,8 @@ components:
           type: string
         password:
           type: string
+        companyId:
+          type: ["integer", "null"]
 
 
     Product:

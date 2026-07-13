@@ -4,6 +4,7 @@ import {
   useCreateBatch,
   getListBatchesQueryKey,
   useListProducts,
+  useListLocations,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -32,6 +33,8 @@ type BatchForm = z.infer<typeof batchSchema>;
 
 export default function NewBatch() {
   const { data: products = [] } = useListProducts();
+  const { data: locations = [] } = useListLocations();
+  const factories = locations;
   const createBatch = useCreateBatch();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
@@ -281,16 +284,24 @@ export default function NewBatch() {
                   {/* Factory Location */}
                   <div className="space-y-2">
                     <label className="text-[11px] font-bold tracking-wider text-slate-500 uppercase block">
-                      Factory Location
+                      Facility Location
                     </label>
-                    <Select onValueChange={setFactoryLocation} defaultValue={factoryLocation}>
+                    <Select onValueChange={setFactoryLocation} value={factoryLocation || ""}>
                       <SelectTrigger className="w-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:ring-0 rounded-lg py-3 px-4 text-sm text-slate-900 transition-all h-auto">
-                        <SelectValue placeholder="Select production facility..." />
+                        <SelectValue placeholder="Select facility location..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Munich North">Munich North - Industrial Complex VII</SelectItem>
-                        <SelectItem value="Singapore Jurong">Singapore Jurong East - Bio-Safe Facility</SelectItem>
-                        <SelectItem value="Chicago Riverside">Chicago Riverside - Automated Plant 4</SelectItem>
+                        {factories.length > 0 ? (
+                          factories.map((loc) => (
+                            <SelectItem key={loc.id} value={loc.locationName}>
+                              {loc.locationName} ({loc.locationType})
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="none" disabled>
+                            No locations registered. Please add one on the Locations page.
+                          </SelectItem>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>

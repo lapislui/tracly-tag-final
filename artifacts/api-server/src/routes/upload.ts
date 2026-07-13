@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { requireAuth } from "../lib/session";
+import { requireAuth } from '../lib/session.js';
 
 const router: IRouter = Router();
 

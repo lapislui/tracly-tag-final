@@ -107,11 +107,16 @@ export default function Products() {
   const [category, setCategory] = useState("All Categories");
 
   const filteredProducts = products.filter((product) => {
+    const companyGstin = companies.find((c: any) => c.id === product.companyId)?.gstin || 
+      (currentUser as any)?.companyGstin || 
+      (currentUser as any)?.company?.gstin || 
+      "";
     const matchesSearch =
       !search ||
       product.skuId.toLowerCase().includes(search.toLowerCase()) ||
       product.name.toLowerCase().includes(search.toLowerCase()) ||
       (product.gtin && product.gtin.toLowerCase().includes(search.toLowerCase())) ||
+      (companyGstin && companyGstin.toLowerCase().includes(search.toLowerCase())) ||
       (product.marketedBy && product.marketedBy.toLowerCase().includes(search.toLowerCase()));
     return matchesSearch;
   });
@@ -259,7 +264,7 @@ export default function Products() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg py-2 pl-10 pr-4 text-sm text-[#0F172A] focus:border-[#2563EB] focus:ring-0 outline-none transition-all"
-              placeholder="Search by SKU, Name or GTIN..."
+              placeholder="Search by SKU, Name, GTIN or GST..."
             />
           </div>
         </div>
@@ -312,7 +317,7 @@ export default function Products() {
               <TableRow className="border-b border-[#E2E8F0] bg-slate-50/50 hover:bg-slate-50/50">
                 <TableHead className="text-slate-500 tracking-wider w-[15%] text-[11px] font-bold px-6 py-4 uppercase">SKU</TableHead>
                 <TableHead className="text-slate-500 tracking-wider w-[20%] text-[11px] font-bold px-6 py-4 uppercase">NAME</TableHead>
-                <TableHead className="text-slate-500 tracking-wider w-[15%] text-[11px] font-bold px-6 py-4 uppercase">GTIN</TableHead>
+                <TableHead className="text-slate-500 tracking-wider w-[15%] text-[11px] font-bold px-6 py-4 uppercase">GTIN / GST</TableHead>
                 <TableHead className="text-slate-500 tracking-wider w-[10%] text-[11px] font-bold px-6 py-4 uppercase text-right">MRP</TableHead>
                 <TableHead className="text-slate-500 tracking-wider w-[20%] text-[11px] font-bold px-6 py-4 uppercase">PACK (L1/L2/SHIPPER)</TableHead>
                 <TableHead className="text-slate-500 tracking-wider w-[10%] text-[11px] font-bold px-6 py-4 uppercase">EXPIRY</TableHead>
@@ -347,7 +352,13 @@ export default function Products() {
                       <span className="text-[12px] font-semibold text-slate-500 block mt-0.5">{product.skuSize}</span>
                     </TableCell>
                     <TableCell className="align-middle px-6 py-5">
-                      <span className="font-mono text-[13px] font-semibold tracking-wider text-slate-600">{product.gtin}</span>
+                      <span className="font-mono text-[13px] font-semibold tracking-wider text-slate-600">
+                        {product.gtin || 
+                          companies.find((c: any) => c.id === product.companyId)?.gstin || 
+                          (currentUser as any)?.companyGstin || 
+                          (currentUser as any)?.company?.gstin || 
+                          "-"}
+                      </span>
                     </TableCell>
                     <TableCell className="align-middle px-6 py-5 text-right">
                       <span className="font-bold text-[#0F172A] text-[14px]">₹{product.mrp.toFixed(2)}</span>

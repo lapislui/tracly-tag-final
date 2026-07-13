@@ -2,7 +2,7 @@ import { useLocation } from "wouter";
 import { useGetCurrentUser, useListCompanies, getListCompaniesQueryKey, useDeleteCompany } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Trash2, Plus, Building2, Globe, Info } from "lucide-react";
+import { Trash2, Plus, Building2, Globe, Info, Edit } from "lucide-react";
 
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -18,8 +18,8 @@ export default function Companies() {
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
-  if (user?.role !== "master" && user?.role !== "super_master") {
-    return <div className="p-8 text-center text-destructive">Access denied. Master role required.</div>;
+  if (user?.role !== "master" && user?.role !== "super_master" && user?.role !== "admin") {
+    return <div className="p-8 text-center text-destructive">Access denied. Master or Admin role required.</div>;
   }
 
   const handleDelete = (id: number) => {
@@ -190,6 +190,14 @@ export default function Companies() {
                           </Dialog>
                         )}
                         
+                        <button
+                          onClick={() => setLocation(`/companies/${company.id}/edit`)}
+                          className="p-2 text-slate-500 hover:text-[#2563EB] hover:bg-blue-50 rounded-lg transition-all"
+                          title="Edit Company"
+                        >
+                          <Edit className="h-5 w-5" />
+                        </button>
+
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <button className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Delete Company">

@@ -9,7 +9,7 @@ import {
   usersTable,
   companiesTable,
 } from "@workspace/db";
-import { requireAuth, requireModule } from "../lib/session";
+import { requireAuth, requireModule } from '../lib/session.js';
 
 const router: IRouter = Router();
 

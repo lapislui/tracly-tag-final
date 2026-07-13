@@ -2,9 +2,9 @@ import express, { type Express } from "express";
 import cors from "cors";
 import { pinoHttp } from "pino-http";
 import cookieParser from "cookie-parser";
-import router from "./routes/index";
-import { logger } from "./lib/logger";
-import { loadUser } from "./middlewares/loadUser";
+import router from './routes/index.js';
+import { logger } from './lib/logger.js';
+import { loadUser } from './middlewares/loadUser.js';
 import path from "path";
 import fs from "fs";
 

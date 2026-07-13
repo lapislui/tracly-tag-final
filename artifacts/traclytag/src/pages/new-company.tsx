@@ -1,5 +1,6 @@
-import { useLocation } from "wouter";
-import { useGetCurrentUser, useCreateCompany, getListCompaniesQueryKey } from "@workspace/api-client-react";
+import { useEffect } from "react";
+import { useLocation, useParams } from "wouter";
+import { useGetCurrentUser, useCreateCompany, useUpdateCompany, useListCompanies, getListCompaniesQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -77,8 +78,14 @@ const companySchema = z.object({
 });
 
 export default function NewCompany() {
+  const { id: idStr } = useParams<{ id?: string }>();
+  const id = idStr ? parseInt(idStr, 10) : undefined;
+  const isEdit = id !== undefined;
+
   const { data: user } = useGetCurrentUser();
   const createCompany = useCreateCompany();
+  const updateCompany = useUpdateCompany();
+  const { data: companies = [] } = useListCompanies();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
 
@@ -100,21 +107,55 @@ export default function NewCompany() {
     },
   });
 
-  if (user?.role !== "master" && user?.role !== "super_master") {
-    return <div className="p-8 text-center text-destructive">Access denied. Master role required.</div>;
+  const company = companies.find(c => c.id === id);
+
+  useEffect(() => {
+    if (isEdit && company) {
+      form.reset({
+        name: company.name ?? "",
+        email: company.email ?? "",
+        address: company.address ?? "",
+        gstin: company.gstin ?? "",
+        companyUrl: company.companyUrl ?? "",
+        pan: company.pan ?? "",
+        cin: company.cin ?? "",
+        msmeRegistrationNo: company.msmeRegistrationNo ?? "",
+        fssaiLicenseNo: company.fssaiLicenseNo ?? "",
+        drugLicenseNo: company.drugLicenseNo ?? "",
+        iecCode: company.iecCode ?? "",
+        companyPrefix: company.companyPrefix ?? "",
+      });
+    }
+  }, [company, isEdit, form]);
+
+  if (user?.role !== "master" && user?.role !== "super_master" && user?.role !== "admin") {
+    return <div className="p-8 text-center text-destructive">Access denied. Master or Admin role required.</div>;
   }
 
   const onSubmit = (values: z.infer<typeof companySchema>) => {
-    createCompany.mutate({ data: values }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListCompaniesQueryKey() });
-        toast.success("Company created successfully");
-        setLocation("/companies");
-      },
-      onError: (error: any) => {
-        toast.error(error?.data?.error || "Failed to create company");
-      }
-    });
+    if (isEdit) {
+      updateCompany.mutate({ id, data: values }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListCompaniesQueryKey() });
+          toast.success("Company updated successfully");
+          setLocation("/companies");
+        },
+        onError: (error: any) => {
+          toast.error(error?.data?.error || "Failed to update company");
+        }
+      });
+    } else {
+      createCompany.mutate({ data: values }, {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListCompaniesQueryKey() });
+          toast.success("Company created successfully");
+          setLocation("/companies");
+        },
+        onError: (error: any) => {
+          toast.error(error?.data?.error || "Failed to create company");
+        }
+      });
+    }
   };
 
   return (
@@ -125,7 +166,7 @@ export default function NewCompany() {
         <span className="material-symbols-outlined text-[14px]">chevron_right</span>
         <a className="text-[11px] font-bold hover:text-[#2563EB] transition-colors uppercase tracking-wider cursor-pointer" onClick={() => setLocation("/companies")}>Companies</a>
         <span className="material-symbols-outlined text-[14px]">chevron_right</span>
-        <span className="text-[11px] text-[#2563EB] uppercase tracking-wider font-bold">Add New Company</span>
+        <span className="text-[11px] text-[#2563EB] uppercase tracking-wider font-bold">{isEdit ? "Edit Company" : "Add New Company"}</span>
       </nav>
 
       <Form {...form}>
@@ -133,8 +174,8 @@ export default function NewCompany() {
           {/* Header Section */}
           <div className="flex justify-between items-end">
             <div>
-              <h2 className="text-[30px] leading-[36px] font-bold text-[#0F172A] tracking-[-0.02em]">Add New Company</h2>
-              <p className="text-[16px] text-slate-600 mt-1">Initialize a new secure corporate node in the TracelyTag network.</p>
+              <h2 className="text-[30px] leading-[36px] font-bold text-[#0F172A] tracking-[-0.02em]">{isEdit ? "Edit Company" : "Add New Company"}</h2>
+              <p className="text-[16px] text-slate-600 mt-1">{isEdit ? "Modify corporate settings and regulatory information." : "Initialize a new secure corporate node in the TracelyTag network."}</p>
             </div>
             <div className="flex gap-3">
               <Button
@@ -147,11 +188,11 @@ export default function NewCompany() {
               </Button>
               <Button
                 type="submit"
-                disabled={createCompany.isPending}
+                disabled={isEdit ? updateCompany.isPending : createCompany.isPending}
                 className="px-6 py-2.5 bg-[#2563EB] hover:bg-[#2563EB]/90 text-white font-semibold rounded-lg hover:shadow-lg hover:shadow-[#2563EB]/20 transition-all flex items-center gap-2 active:scale-95 h-auto cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">save</span>
-                Save Company
+                {isEdit ? "Update Company" : "Save Company"}
               </Button>
             </div>
           </div>

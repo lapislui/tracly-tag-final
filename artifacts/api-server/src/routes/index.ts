@@ -1,15 +1,16 @@
 import { Router, type IRouter } from "express";
-import healthRouter from "./health";
-import authRouter from "./auth";
-import companiesRouter from "./companies";
-import usersRouter from "./users";
-import productsRouter from "./products";
-import locationsRouter from "./locations";
-import batchesRouter from "./batches";
-import codesRouter from "./codes";
-import reportsRouter from "./reports";
-import uploadRouter from "./upload";
-import subscriptionRouter from "./subscription";
+import healthRouter from './health.js';
+import authRouter from './auth.js';
+import companiesRouter from './companies.js';
+import usersRouter from './users.js';
+import productsRouter from './products.js';
+import locationsRouter from './locations.js';
+import batchesRouter from './batches.js';
+import codesRouter from './codes.js';
+import reportsRouter from './reports.js';
+import uploadRouter from './upload.js';
+import subscriptionRouter from './subscription.js';
+import systemRouter from './system.js';
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(codesRouter);
 router.use(reportsRouter);
 router.use(uploadRouter);
 router.use(subscriptionRouter);
+router.use(systemRouter);
 
 export default router;

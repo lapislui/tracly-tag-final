@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, eq, desc } from "drizzle-orm";
 import { db, batchesTable, productsTable } from "@workspace/db";
 import { CreateBatchBody } from "@workspace/api-zod";
-import { requireAuth, requireModule } from "../lib/session";
+import { requireAuth, requireModule } from '../lib/session.js';
 
 const router: IRouter = Router();
 

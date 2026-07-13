@@ -8,13 +8,14 @@ import { useMappingCodeVisibility } from "@/hooks/use-mapping-code-visibility";
 import { 
   LayoutDashboard, Building2, Users, Package, MapPin, 
   Layers, QrCode, FileText, PackageCheck, BarChart3, ListOrdered, LogOut, Menu,
-  Link as LinkIcon, ScanBarcode, Settings, HelpCircle, Lock, Copy, User
+  Link as LinkIcon, ScanBarcode, Settings, HelpCircle, Lock, Copy, User, Terminal
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: user } = useGetCurrentUser();
@@ -26,25 +27,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [requiredTier, setRequiredTier] = useState("");
   const { hideMappingCode } = useMappingCodeVisibility();
 
-  const getApiBaseUrl = () => {
-    if (typeof window === "undefined") return "";
-    const { protocol, hostname, port } = window.location;
-    if (hostname === "localhost" || hostname === "127.0.0.1") {
-      return `${protocol}//${hostname}:3000/api`;
-    }
-    if (port && port !== "80" && port !== "443") {
-      return `${protocol}//${hostname}:3000/api`;
-    }
-    return `${window.location.origin}/api`;
-  };
-
-  const getAuthToken = () => {
-    if (!user) return "";
-    if (user.role === "super_master") return "supermaster";
-    if (user.role === "master") return "master";
-    if (user.role === "client_admin") return "demo_admin";
-    return "demo_op";
-  };
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -62,6 +44,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   const isMaster = user.role === "master" || user.role === "super_master";
+  const isMasterOrAdmin = isMaster || user.role === "admin";
   const currentPlan = isMaster ? "enterprise" : (user as any).subscriptionPlan || "free";
 
   const getRequiredPlan = (href: string) => {
@@ -80,13 +63,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return required === "free";
   };
 
+  const userModulesRaw = (user.enabledModules || "").split(",");
+  if (user.role === "admin" && !userModulesRaw.includes("companies")) {
+    userModulesRaw.push("companies");
+  }
+
   const userModules = isMaster 
     ? ["dashboard", "companies", "users", "products", "locations", "batches", "generate_codes", "mapping_code", "customer_scan", "summary", "reports"]
-    : (user.enabledModules || "").split(",");
+    : userModulesRaw;
 
   const navigation = [
     { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, module: "dashboard" },
-    ...(isMaster ? [{ title: "Companies", href: "/companies", icon: Building2, module: "companies" }] : []),
+    ...(isMasterOrAdmin ? [{ title: "Companies", href: "/companies", icon: Building2, module: "companies" }] : []),
     { title: "Users", href: "/users", icon: Users, module: "users" },
     { title: "Products", href: "/products", icon: Package, module: "products" },
     { title: "Locations", href: "/locations", icon: MapPin, module: "locations" },
@@ -101,6 +89,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const bottomNavigation = [
     { title: "Profile", href: "/profile", icon: User },
     { title: "Settings", href: "/settings", icon: Settings },
+    ...(user.role === "super_master" ? [{ title: "System", href: "/system", icon: Terminal }] : []),
     { title: "Support", href: "/support", icon: HelpCircle },
   ];
 
@@ -112,15 +101,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col md:flex-row">
+    <div className="relative min-h-screen md:h-screen md:overflow-hidden bg-background flex flex-col md:flex-row">
       <aside className={cn(
         "border-r border-white/10 bg-midnight-navy text-white flex-shrink-0 flex flex-col hidden md:flex transition-all duration-300 ease-in-out",
         isCollapsed ? "w-20" : "w-64"
       )}>
-        <div className="h-14 border-b border-white/10 flex items-center px-4 font-semibold text-lg tracking-tight text-white justify-between overflow-hidden">
-          <div className="flex items-center gap-2">
-            <QrCode className="h-5 w-5 text-safety-blue shrink-0 animate-pulse" />
-            {!isCollapsed && <span className="font-bold tracking-tight">TracelyTag</span>}
+        <div className="h-14 border-b border-white/10 flex items-center px-4 justify-between overflow-hidden">
+          <div className="flex items-center gap-2 w-full justify-center md:justify-start">
+            <img 
+              src={isCollapsed ? "/logo-icon.png" : "/logo.png"} 
+              alt="Logo" 
+              className={cn("object-contain transition-all duration-300", isCollapsed ? "h-7 w-7" : "h-7")} 
+            />
           </div>
           {!isCollapsed && <span className="text-[10px] text-white/40 font-mono">v2.4</span>}
         </div>
@@ -186,89 +178,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         
-        {/* Node status indicator matching Mockup */}
-        <div className="p-3 border-t border-white/10">
-          {isCollapsed ? (
-            <div className="flex flex-col gap-2">
-              <div 
-                className="flex justify-center items-center bg-white/5 rounded-lg border border-white/10 w-10 h-10 mx-auto cursor-pointer hover:bg-white/10 text-white/40 hover:text-white transition-all" 
-                title="Copy Mobile API Endpoint"
-                onClick={() => {
-                  navigator.clipboard.writeText(getApiBaseUrl());
-                  toast({
-                    description: "Mobile API endpoint copied to clipboard",
-                  });
-                }}
-              >
-                <LinkIcon className="h-4 w-4 text-safety-blue shrink-0" />
-              </div>
-              <div 
-                className="flex justify-center items-center bg-white/5 rounded-lg border border-white/10 w-10 h-10 mx-auto cursor-pointer hover:bg-white/10 text-white/40 hover:text-white transition-all" 
-                title="Copy API Authorization Token"
-                onClick={() => {
-                  navigator.clipboard.writeText(getAuthToken());
-                  toast({
-                    description: "API Authorization Token copied to clipboard",
-                  });
-                }}
-              >
-                <Lock className="h-4 w-4 text-amber-500 shrink-0" />
-              </div>
-            </div>
-          ) : (
-            <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-3">
-              <div>
-                <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest mb-1.5">Instance</p>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-success-emerald animate-pulse"></div>
-                  <span className="text-xs text-white font-bold">Production Node 04</span>
-                </div>
-              </div>
-              <div className="pt-2.5 border-t border-white/5">
-                <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest mb-1.5">Mobile API Endpoint</p>
-                <div className="flex items-center gap-1.5 bg-black/40 rounded-lg p-1.5 border border-white/5 overflow-hidden">
-                  <span className="text-[10px] font-mono text-white/70 truncate flex-1 select-all" title={getApiBaseUrl()}>
-                    {getApiBaseUrl()}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 hover:bg-white/10 text-white/40 hover:text-white shrink-0 cursor-pointer"
-                    onClick={() => {
-                      navigator.clipboard.writeText(getApiBaseUrl());
-                      toast({
-                        description: "Mobile API endpoint copied to clipboard",
-                      });
-                    }}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-              <div className="pt-2.5 border-t border-white/5">
-                <p className="text-[9px] font-bold text-white/40 uppercase tracking-widest mb-1.5">API Authorization Token</p>
-                <div className="flex items-center gap-1.5 bg-black/40 rounded-lg p-1.5 border border-white/5 overflow-hidden">
-                  <span className="text-[10px] font-mono text-white/70 truncate flex-1 select-all" title={getAuthToken()}>
-                    {getAuthToken()}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-5 w-5 hover:bg-white/10 text-white/40 hover:text-white shrink-0 cursor-pointer"
-                    onClick={() => {
-                      navigator.clipboard.writeText(getAuthToken());
-                      toast({
-                        description: "API Authorization Token copied to clipboard",
-                      });
-                    }}
-                  >
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 bg-slate-50/50 dark:bg-slate-950/20">
@@ -282,9 +191,90 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <Menu className="h-4 w-4" />
             </Button>
-            <div className="flex items-center gap-4 md:hidden">
-              <QrCode className="h-5 w-5 text-safety-blue" />
-              <span className="font-semibold text-midnight-navy dark:text-white">TracelyTag</span>
+            <div className="flex items-center gap-2 md:hidden">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 cursor-pointer"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-64 bg-midnight-navy text-white p-0 border-r border-white/10 flex flex-col h-full font-sans">
+                  {/* Mobile Sidebar Header */}
+                  <div className="h-14 border-b border-white/10 flex items-center px-4 justify-between overflow-hidden shrink-0">
+                    <img src="/logo.png" alt="Logo" className="h-7 object-contain" />
+                    <span className="text-[10px] text-white/40 font-mono">v2.4</span>
+                  </div>
+                  {/* Mobile Navigation Links */}
+                  <div className="p-3 flex-1 overflow-y-auto space-y-6">
+                    <div className="space-y-1">
+                      {navigation.map((item, i) => {
+                        const isActive = location === item.href || location.startsWith(item.href + "/");
+                        const required = getRequiredPlan(item.href);
+                        const allowed = isPlanSufficient(required, currentPlan) || userModules.includes(item.module);
+
+                        if (!allowed) {
+                          return (
+                            <button
+                              key={i}
+                              onClick={() => {
+                                setRequiredTier(required);
+                                setUpgradeModalOpen(true);
+                              }}
+                              className="w-full flex items-center rounded-lg text-sm font-medium transition-all duration-200 text-white/40 hover:bg-white/5 cursor-pointer px-4 py-2.5 gap-3 justify-between"
+                            >
+                              <div className="flex items-center gap-3">
+                                <item.icon className="h-4 w-4 shrink-0" />
+                                <span>{item.title}</span>
+                              </div>
+                              <Lock className="h-3.5 w-3.5 text-amber-500/80 shrink-0" />
+                            </button>
+                          );
+                        }
+
+                        return (
+                          <SheetClose asChild key={i}>
+                            <Link 
+                              href={item.href} 
+                              className={cn(
+                                "flex items-center rounded-lg text-sm font-medium transition-all duration-200 px-4 py-2.5 gap-3 w-full",
+                                isActive ? "bg-safety-blue text-white shadow-lg shadow-safety-blue/20" : "text-white/70 hover:bg-white/5 hover:text-white"
+                              )}
+                            >
+                              <item.icon className="h-4 w-4 shrink-0" />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SheetClose>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-4 border-t border-white/10 space-y-1">
+                      {bottomNavigation.map((item, i) => {
+                        const isActive = location === item.href || location.startsWith(item.href + "/");
+                        return (
+                          <SheetClose asChild key={i}>
+                            <Link 
+                              href={item.href} 
+                              className={cn(
+                                "flex items-center rounded-lg text-sm font-medium transition-all duration-200 px-4 py-2.5 gap-3 w-full",
+                                isActive ? "bg-safety-blue text-white shadow-lg shadow-safety-blue/20" : "text-white/70 hover:bg-white/5 hover:text-white"
+                              )}
+                            >
+                              <item.icon className="h-4 w-4 shrink-0" />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SheetClose>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+              <img src="/logo.png" alt="Logo" className="h-6 object-contain ml-1" />
             </div>
             <div className="hidden md:flex items-center text-sm font-medium text-slate-500 dark:text-slate-400">
               {user.companyName ? `Company: ${user.companyName}` : "Global Admin"}

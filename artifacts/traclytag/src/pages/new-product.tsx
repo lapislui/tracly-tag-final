@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import {
   useGetCurrentUser,
@@ -21,6 +21,7 @@ import {
   Skull, 
   Leaf, 
   Snowflake,
+  Ban,
   Loader2,
   Trash2,
   Plus
@@ -39,7 +40,6 @@ const productSchema = z.object({
   skuSize: z.string().min(1, "SKU size required"),
   marketedBy: z.string().min(1, "Marketed by required"),
   sapDescription: z.string().optional().or(z.literal("")),
-  gtin: z.string().optional().or(z.literal("")),
   mrp: z.coerce.number().positive("MRP must be positive"),
   registrationNo: z.string().optional().or(z.literal("")),
   hsnCode: z.string().optional().or(z.literal("")),
@@ -59,16 +59,6 @@ const productSchema = z.object({
   labelPdfUrl: z.string().optional().or(z.literal("")),
   expiryDate: z.date({ required_error: "Expiry date is required" }),
   companyId: z.coerce.number().optional(),
-}).superRefine((data, ctx) => {
-  if (data.isGs1Compliant) {
-    if (!data.gtin || !/^\d{13,14}$/.test(data.gtin)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "GTIN is required for GS1 compliant products and must be 13-14 digits.",
-        path: ["gtin"],
-      });
-    }
-  }
 });
 
 type ProductForm = z.infer<typeof productSchema>;
@@ -97,7 +87,6 @@ export default function NewProduct() {
       skuSize: "",
       marketedBy: "Tracely Global Logistics",
       sapDescription: "",
-      gtin: "",
       mrp: 0,
       registrationNo: "",
       hsnCode: "",
@@ -119,6 +108,23 @@ export default function NewProduct() {
       companyId: undefined,
     },
   });
+
+  const watchName = form.watch("name");
+
+  useEffect(() => {
+    if (currentUser?.companyName && !isMaster) {
+      form.setValue("marketedBy", currentUser.companyName);
+    }
+  }, [currentUser, isMaster, form]);
+
+  useEffect(() => {
+    const generatedSku = (watchName || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9\s-]/g, "")
+      .trim()
+      .replace(/[\s-]+/g, "-");
+    form.setValue("skuId", generatedSku, { shouldValidate: true });
+  }, [watchName, form]);
 
   const watchL1Size = form.watch("l1Size") || 10;
   const watchShipperSize = form.watch("shipperSize") || 5;
@@ -298,7 +304,7 @@ export default function NewProduct() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="false">TracelyTag Internal Compliance (Generates secure non-GS1 serial codes)</SelectItem>
-                            <SelectItem value="true">Official GS1 Compliant Mode (Requires 13/14-digit GTIN checks)</SelectItem>
+                            <SelectItem value="true">Official GS1 Compliant Mode (Requires GTIN or Company GST)</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -316,8 +322,9 @@ export default function NewProduct() {
                         </FormLabel>
                         <FormControl>
                           <Input 
-                            placeholder="e.g. SKU-88291-B" 
-                            className="w-full bg-[#F8FAFC] border-[#E2E8F0] focus-visible:border-[#2563EB] focus-visible:ring-0 rounded-lg py-2.5 px-4 text-sm text-slate-900 transition-all placeholder:text-slate-400"
+                            readOnly
+                            placeholder="Automatically generated from product name" 
+                            className="w-full bg-[#F1F5F9] border-[#E2E8F0] text-slate-500 rounded-lg py-2.5 px-4 text-sm transition-all cursor-not-allowed focus-visible:ring-0 placeholder:text-slate-400 font-semibold"
                             {...field} 
                           />
                         </FormControl>
@@ -326,25 +333,17 @@ export default function NewProduct() {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="gtin"
-                    render={({ field }) => (
-                      <FormItem className="space-y-1.5">
-                        <FormLabel className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
-                          GTIN NUMBER {form.watch("isGs1Compliant") && <span className="text-[#EF4444]">*</span>}
-                        </FormLabel>
-                        <FormControl>
-                          <Input 
-                            placeholder="08901234567890" 
-                            className="w-full bg-[#F8FAFC] border-[#E2E8F0] focus-visible:border-[#2563EB] focus-visible:ring-0 rounded-lg py-2.5 px-4 text-sm text-slate-900 transition-all font-mono placeholder:text-slate-400"
-                            {...field} 
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                      COMPANY GST
+                    </label>
+                    <Input 
+                      value={companies.find((c: any) => c.id === form.watch("companyId"))?.gstin || (currentUser as any)?.companyGstin || (currentUser as any)?.company?.gstin || ""}
+                      readOnly
+                      placeholder="Selected company GST" 
+                      className="w-full bg-[#F1F5F9] border-[#E2E8F0] text-slate-500 rounded-lg py-2.5 px-4 text-sm transition-all font-mono cursor-not-allowed focus-visible:ring-0"
+                    />
+                  </div>
                 </div>
 
                 <FormField
@@ -478,16 +477,26 @@ export default function NewProduct() {
                         <FormLabel className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
                           MARKETED BY
                         </FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value || ""}>
                           <FormControl>
                             <SelectTrigger className="w-full bg-[#F8FAFC] border border-[#E2E8F0] focus:border-[#2563EB] focus:ring-0 rounded-lg py-2.5 px-4 text-sm text-slate-900 transition-all h-[42px]">
-                              <SelectValue placeholder="Select context" />
+                              <SelectValue placeholder="Select company" />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="Tracely Global Logistics">Tracely Global Logistics</SelectItem>
-                            <SelectItem value="Apex Pharmaceuticals">Apex Pharmaceuticals</SelectItem>
-                            <SelectItem value="Demo Pharma Pvt Ltd">Demo Pharma Pvt Ltd</SelectItem>
+                            {isMaster ? (
+                              companies.map((c) => (
+                                <SelectItem key={c.id} value={c.name}>
+                                  {c.name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              currentUser?.companyName && (
+                                <SelectItem value={currentUser.companyName}>
+                                  {currentUser.companyName}
+                                </SelectItem>
+                              )
+                            )}
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -517,8 +526,9 @@ export default function NewProduct() {
                       <FormLabel className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
                         CAUTION LOGO SELECTION
                       </FormLabel>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                         {[
+                          { name: "N/A", icon: Ban, color: "text-slate-400", bg: "bg-slate-100" },
                           { name: "Flammable", icon: Flame, color: "text-red-500", bg: "bg-red-50" },
                           { name: "Toxic", icon: Skull, color: "text-slate-600", bg: "bg-slate-50" },
                           { name: "Eco-Hazard", icon: Leaf, color: "text-emerald-500", bg: "bg-emerald-50" },

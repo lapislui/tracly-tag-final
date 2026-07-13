@@ -28,7 +28,7 @@ export const LoginResponse = zod.object({
   "id": zod.number(),
   "username": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['super_master', 'master', 'client_admin', 'operator']),
+  "role": zod.enum(['super_master', 'master', 'admin', 'client_admin', 'operator']),
   "companyId": zod.number().nullable(),
   "companyName": zod.string().nullable(),
   "companyUrl": zod.string().nullish(),
@@ -58,7 +58,7 @@ export const GetCurrentUserResponse = zod.object({
   "id": zod.number(),
   "username": zod.string(),
   "email": zod.string(),
-  "role": zod.enum(['super_master', 'master', 'client_admin', 'operator']),
+  "role": zod.enum(['super_master', 'master', 'admin', 'client_admin', 'operator']),
   "companyId": zod.number().nullable(),
   "companyName": zod.string().nullable(),
   "companyUrl": zod.string().nullish(),
@@ -184,12 +184,56 @@ export const DeleteCompanyParams = zod.object({
 })
 
 
+export const UpdateCompanyParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const updateCompanyBodyGstinRegExp = new RegExp('^[0-9]{2}[a-zA-Z0-9]{10}[a-zA-Z0-9][zZ][a-zA-Z0-9]?$');
+
+
+export const UpdateCompanyBody = zod.object({
+  "name": zod.string(),
+  "email": zod.string(),
+  "address": zod.string(),
+  "gstin": zod.string().regex(updateCompanyBodyGstinRegExp).nullish(),
+  "companyUrl": zod.string().nullish(),
+  "pan": zod.string().nullish(),
+  "cin": zod.string().nullish(),
+  "msmeRegistrationNo": zod.string().nullish(),
+  "fssaiLicenseNo": zod.string().nullish(),
+  "drugLicenseNo": zod.string().nullish(),
+  "iecCode": zod.string().nullish(),
+  "companyPrefix": zod.string().nullish()
+})
+
+export const updateCompanyResponseGstinRegExp = new RegExp('^[0-9]{2}[a-zA-Z0-9]{10}[a-zA-Z0-9][zZ][a-zA-Z0-9]?$');
+
+
+export const UpdateCompanyResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "address": zod.string(),
+  "gstin": zod.string().regex(updateCompanyResponseGstinRegExp).nullable(),
+  "companyUrl": zod.string().nullish(),
+  "apiKey": zod.string().nullish(),
+  "pan": zod.string().nullish(),
+  "cin": zod.string().nullish(),
+  "msmeRegistrationNo": zod.string().nullish(),
+  "fssaiLicenseNo": zod.string().nullish(),
+  "drugLicenseNo": zod.string().nullish(),
+  "iecCode": zod.string().nullish(),
+  "companyPrefix": zod.string().nullish(),
+  "createdAt": zod.coerce.date()
+})
+
+
 export const ListUsersResponseItem = zod.object({
   "id": zod.number(),
   "username": zod.string(),
   "email": zod.string(),
   "phone": zod.string().nullable(),
-  "role": zod.enum(['super_master', 'master', 'client_admin', 'operator']),
+  "role": zod.enum(['super_master', 'master', 'admin', 'client_admin', 'operator']),
   "companyId": zod.number().nullable(),
   "companyName": zod.string().nullable(),
   "isActive": zod.boolean(),
@@ -204,7 +248,7 @@ export const CreateUserBody = zod.object({
   "email": zod.string(),
   "phone": zod.string().nullish(),
   "password": zod.string(),
-  "role": zod.enum(['super_master', 'master', 'client_admin', 'operator']),
+  "role": zod.enum(['super_master', 'master', 'admin', 'client_admin', 'operator']),
   "companyId": zod.number().nullish(),
   "isActive": zod.boolean().optional(),
   "enabledModules": zod.string().optional()
@@ -223,10 +267,11 @@ export const UpdateUserParams = zod.object({
 export const UpdateUserBody = zod.object({
   "email": zod.string().optional(),
   "phone": zod.string().nullish(),
-  "role": zod.enum(['super_master', 'master', 'client_admin', 'operator']).optional(),
+  "role": zod.enum(['super_master', 'master', 'admin', 'client_admin', 'operator']).optional(),
   "isActive": zod.boolean().optional(),
   "enabledModules": zod.string().optional(),
-  "password": zod.string().optional()
+  "password": zod.string().optional(),
+  "companyId": zod.number().nullish()
 })
 
 export const UpdateUserResponse = zod.object({
@@ -234,7 +279,7 @@ export const UpdateUserResponse = zod.object({
   "username": zod.string(),
   "email": zod.string(),
   "phone": zod.string().nullable(),
-  "role": zod.enum(['super_master', 'master', 'client_admin', 'operator']),
+  "role": zod.enum(['super_master', 'master', 'admin', 'client_admin', 'operator']),
   "companyId": zod.number().nullable(),
   "companyName": zod.string().nullable(),
   "isActive": zod.boolean(),

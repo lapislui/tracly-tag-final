@@ -17,7 +17,8 @@ import {
   BookOpen,
   ArrowRight,
   ShieldCheck,
-  Server
+  Server,
+  Loader2
 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +31,26 @@ import { cn } from "@/lib/utils";
 export default function Support() {
   const { data: currentUser } = useGetCurrentUser();
   const isSuperMaster = currentUser?.role === "super_master";
+
+  const getApiBaseUrl = () => {
+    if (typeof window === "undefined") return "";
+    const { protocol, hostname, port } = window.location;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return `${protocol}//${hostname}:3000/api`;
+    }
+    if (port && port !== "80" && port !== "443") {
+      return `${protocol}//${hostname}:3000/api`;
+    }
+    return `${window.location.origin}/api`;
+  };
+
+  const getAuthToken = () => {
+    if (!currentUser) return "";
+    if (currentUser.role === "super_master") return "supermaster";
+    if (currentUser.role === "master") return "master";
+    if (currentUser.role === "client_admin") return "demo_admin";
+    return "demo_op";
+  };
 
   const { data: companies = [] } = useListCompanies({
     query: {
@@ -80,6 +101,42 @@ export default function Support() {
   };
 
   const [supportMode, setSupportMode] = useState<"system" | "company">("system");
+
+  // --- SMTP Test States ---
+  const [smtpPassword, setSmtpPassword] = useState("");
+  const [smtpRecipient, setSmtpRecipient] = useState("");
+  const [isSendingSmtpTest, setIsSendingSmtpTest] = useState(false);
+  const [smtpError, setSmtpError] = useState<string | null>(null);
+  const [smtpSuccess, setSmtpSuccess] = useState<string | null>(null);
+
+  const handleSendSmtpTest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!smtpPassword || !smtpRecipient) {
+      toast.error("Please fill in both fields");
+      return;
+    }
+    setIsSendingSmtpTest(true);
+    setSmtpError(null);
+    setSmtpSuccess(null);
+    try {
+      const res = await fetch("/api/auth/send-test-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: smtpPassword, recipient: smtpRecipient })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send test email");
+      }
+      setSmtpSuccess(data.message || "Test email sent successfully!");
+      toast.success("Test email sent successfully!");
+    } catch (err: any) {
+      setSmtpError(err.message || "An unknown error occurred");
+      toast.error("Failed to send SMTP test email");
+    } finally {
+      setIsSendingSmtpTest(false);
+    }
+  };
   const [domainInput, setDomainInput] = useState("");
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedWidget, setCopiedWidget] = useState(false);
@@ -313,31 +370,140 @@ export default function Support() {
             </CardContent>
           </Card>
 
-          {/* Quick Config Card */}
-          <Card className="border border-border-subtle shadow-sm bg-white dark:bg-slate-900 rounded-2xl p-6 space-y-6">
-            <h3 className="font-bold text-sm text-midnight-navy dark:text-white uppercase tracking-wider">Master Actions</h3>
-            <div className="space-y-4">
-              <div className="flex gap-3">
-                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg h-fit">
-                  <Server className="h-5 w-5" />
+          <div className="space-y-6">
+            {/* Quick Config Card */}
+            <Card className="border border-border-subtle shadow-sm bg-white dark:bg-slate-900 rounded-2xl p-6 space-y-6">
+              <h3 className="font-bold text-sm text-midnight-navy dark:text-white uppercase tracking-wider">Master Actions</h3>
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg h-fit">
+                    <Server className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Reverse Proxy SSL Status</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Wildcard TLS certificate verified active for domain endpoints.</p>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Reverse Proxy SSL Status</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Wildcard TLS certificate verified active for domain endpoints.</p>
-                </div>
-              </div>
 
-              <div className="flex gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
-                <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg h-fit">
-                  <Globe className="h-5 w-5" />
-                </div>
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">CNAME Validation Server</h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">DNS validation server running at 142.250.190.46.</p>
+                <div className="flex gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
+                  <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg h-fit">
+                    <Globe className="h-5 w-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">CNAME Validation Server</h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">DNS validation server running at 142.250.190.46.</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+
+            {/* Instance Card */}
+            <Card className="border border-border-subtle bg-white dark:bg-slate-900 shadow-sm rounded-2xl p-6 space-y-4">
+              <div>
+                <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Instance</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-success-emerald animate-pulse"></div>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">Production Node 04</span>
+                </div>
+              </div>
+              <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Mobile API Endpoint</p>
+                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 rounded-lg p-1.5 border border-slate-200 dark:border-slate-800 overflow-hidden">
+                  <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400 truncate flex-1 select-all" title={getApiBaseUrl()}>
+                    {getApiBaseUrl()}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 shrink-0 cursor-pointer"
+                    onClick={() => {
+                      navigator.clipboard.writeText(getApiBaseUrl());
+                      toast.success("Mobile API endpoint copied to clipboard");
+                    }}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+              <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">API Authorization Token</p>
+                <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 rounded-lg p-1.5 border border-slate-200 dark:border-slate-800 overflow-hidden">
+                  <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400 truncate flex-1 select-all" title={getAuthToken()}>
+                    {getAuthToken()}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 shrink-0 cursor-pointer"
+                    onClick={() => {
+                      navigator.clipboard.writeText(getAuthToken());
+                      toast.success("API Authorization Token copied to clipboard");
+                    }}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            {/* SMTP Test Card */}
+            <Card className="border border-border-subtle bg-white dark:bg-slate-900 shadow-sm rounded-2xl p-6 space-y-4">
+              <h3 className="font-bold text-sm text-midnight-navy dark:text-white uppercase tracking-wider">SMTP Connection Test</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                Test SMTP routing configuration and OTP delivery logs to ensure notifications deliver correctly.
+              </p>
+              <form onSubmit={handleSendSmtpTest} className="space-y-3.5 flex flex-col text-left">
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">Super Master Password</label>
+                  <Input
+                    type="password"
+                    placeholder="Enter supermaster password"
+                    value={smtpPassword}
+                    onChange={(e) => setSmtpPassword(e.target.value)}
+                    className="bg-white dark:bg-slate-900 text-xs py-1.5 h-8 border border-slate-200 dark:border-slate-800 rounded focus-visible:border-[#2563EB] focus-visible:ring-0"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase">Test Recipient Email</label>
+                  <Input
+                    type="email"
+                    placeholder="recipient@example.com"
+                    value={smtpRecipient}
+                    onChange={(e) => setSmtpRecipient(e.target.value)}
+                    className="bg-white dark:bg-slate-900 text-xs py-1.5 h-8 border border-slate-200 dark:border-slate-800 rounded focus-visible:border-[#2563EB] focus-visible:ring-0"
+                  />
+                </div>
+
+                {smtpError && (
+                  <div className="p-2 text-[10px] bg-red-50 text-red-700 border border-red-205 rounded leading-normal max-h-24 overflow-y-auto font-mono">
+                    ⚠️ {smtpError}
+                  </div>
+                )}
+
+                {smtpSuccess && (
+                  <div className="p-2 text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-205 rounded leading-normal font-mono">
+                    ✅ {smtpSuccess}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={isSendingSmtpTest}
+                  className="w-full bg-[#2563EB] hover:bg-blue-600 text-white font-semibold text-[11px] h-8 rounded mt-1 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  {isSendingSmtpTest ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Send Test Email"
+                  )}
+                </Button>
+              </form>
+            </Card>
+          </div>
         </div>
       </div>
     );
@@ -722,6 +888,55 @@ export default function Support() {
                 </a>
               </div>
             </CardContent>
+          </Card>
+
+          {/* Instance Card */}
+          <Card className="border border-border-subtle bg-white dark:bg-slate-900 shadow-sm rounded-2xl p-6 space-y-4">
+            <div>
+              <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Instance</p>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-success-emerald animate-pulse"></div>
+                <span className="text-xs font-bold text-slate-900 dark:text-white">Production Node 04</span>
+              </div>
+            </div>
+            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">Mobile API Endpoint</p>
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 rounded-lg p-1.5 border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400 truncate flex-1 select-all" title={getApiBaseUrl()}>
+                  {getApiBaseUrl()}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 shrink-0 cursor-pointer"
+                  onClick={() => {
+                    navigator.clipboard.writeText(getApiBaseUrl());
+                    toast.success("Mobile API endpoint copied to clipboard");
+                  }}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+            <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1.5">API Authorization Token</p>
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-950 rounded-lg p-1.5 border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400 truncate flex-1 select-all" title={getAuthToken()}>
+                  {getAuthToken()}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 shrink-0 cursor-pointer"
+                  onClick={() => {
+                    navigator.clipboard.writeText(getAuthToken());
+                    toast.success("API Authorization Token copied to clipboard");
+                  }}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
           </Card>
         </div>
       </div>

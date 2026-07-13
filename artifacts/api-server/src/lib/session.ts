@@ -25,7 +25,7 @@ export interface AuthUser {
   id: number;
   username: string;
   email: string;
-  role: "super_master" | "master" | "client_admin" | "operator";
+  role: "super_master" | "master" | "admin" | "client_admin" | "operator";
   companyId: number | null;
   isActive: boolean;
   enabledModules: string;

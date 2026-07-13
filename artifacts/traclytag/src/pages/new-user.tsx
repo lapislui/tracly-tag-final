@@ -21,7 +21,7 @@ const userSchema = z.object({
   email: z.string().email("Invalid email address"),
   phone: z.string().optional().or(z.literal("")),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["super_master", "master", "client_admin", "operator"]),
+  role: z.enum(["super_master", "master", "admin", "client_admin", "operator"]),
   companyId: z.coerce.number().optional(),
 });
 
@@ -235,7 +235,8 @@ export default function NewUser() {
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="operator">Operator</SelectItem>
-                            <SelectItem value="client_admin">Manager</SelectItem>
+                            {(isMaster || currentUser?.role === "admin") && <SelectItem value="client_admin">Manager</SelectItem>}
+                            {(isMaster || currentUser?.role === "admin") && <SelectItem value="admin">Admin</SelectItem>}
                             {isMaster && <SelectItem value="master">Master</SelectItem>}
                             {currentUser?.role === "super_master" && <SelectItem value="super_master">Super Master</SelectItem>}
                           </SelectContent>
@@ -245,7 +246,7 @@ export default function NewUser() {
                     )}
                   />
 
-                  {isMaster && (
+                  {isMaster && ["admin", "client_admin", "operator"].includes(form.watch("role")) && (
                     <FormField
                       control={form.control}
                       name="companyId"
