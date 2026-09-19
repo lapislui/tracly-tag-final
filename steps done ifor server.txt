@@ -1,0 +1,10 @@
+ubuntu vps bought for hosting this 
+
+1 of the dns record added in domain:
+App.tracelytag.com
+Type: A
+Host / Name: app
+IPv4 address: 51.79.160.129
+
+docker installed in vps server
+jenkins installed in vps server

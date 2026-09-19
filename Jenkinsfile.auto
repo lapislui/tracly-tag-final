@@ -1,77 +1,97 @@
 pipeline {
     agent any
 
-    triggers {
-        pollSCM('* * * * *') // Poll Git SCM for changes every minute
+    // Triggers for PR and Webhook builds
+    // Works with GitHub Webhooks (pull_request event) and Multibranch Pipeline PR discovery
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        disableConcurrentBuilds()
     }
 
     environment {
         DOCKER_IMAGE = 'tracly-tag-final'
-        DOCKER_TAG = "dev-${env.BUILD_NUMBER}"
-        DOCKER_LATEST_TAG = 'dev'
+        // Tag format: pr-<number>-build-<number> or dev-<number>
+        DOCKER_TAG = "${env.CHANGE_ID ? 'pr-' + env.CHANGE_ID + '-build-' + env.BUILD_NUMBER : 'dev-' + env.BUILD_NUMBER}"
+        DOCKER_LATEST_TAG = "${env.CHANGE_ID ? 'pr-' + env.CHANGE_ID : 'dev'}"
         DOCKER_REGISTRY_CREDENTIALS_ID = 'docker-hub-credentials'
         DOCKER_REGISTRY_USER = 'luphonixprime'
-        GIT_BRANCH = 'dockerize'
-        GIT_URL = 'https://github.com/lapislui/tracly-tag-final.git'
+        
+        // Repositories info
+        ORG_REPO_URL = 'https://github.com/Luphonix-Prime/tracly-tag-final.git'
+        TARGET_BRANCH = "${env.CHANGE_TARGET ?: 'new-try'}"
+        SOURCE_BRANCH = "${env.CHANGE_BRANCH ?: 'dockerize'}"
     }
 
     stages {
-        stage('Checkout') {
+        stage('PR & SCM Checkout') {
+            steps {
+                script {
+                    echo "Checking out source code for PR build..."
+                    if (env.CHANGE_ID) {
+                        echo "Building Pull Request #${env.CHANGE_ID}: ${env.CHANGE_BRANCH} -> ${env.CHANGE_TARGET}"
+                    } else {
+                        echo "Building Branch: ${env.SOURCE_BRANCH}"
+                    }
+
+                    try {
+                        // In Multibranch / PR pipeline, checkout scm automatically checks out and merges PR
+                        checkout scm
+                    } catch (Exception e) {
+                        echo "Standard SCM checkout failed, falling back to git clone..."
+                        git branch: env.SOURCE_BRANCH, url: env.ORG_REPO_URL
+                    }
+                }
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo "Building Docker image: ${env.DOCKER_IMAGE}:${env.DOCKER_TAG} and ${env.DOCKER_IMAGE}:${env.DOCKER_LATEST_TAG}"
+                sh "docker build --target runner -t ${env.DOCKER_IMAGE}:${env.DOCKER_TAG} -t ${env.DOCKER_IMAGE}:${env.DOCKER_LATEST_TAG} -t ${env.DOCKER_IMAGE}:latest ."
+            }
+        }
+
+        stage('Push to Registry') {
             steps {
                 script {
                     try {
-                        checkout scm
+                        echo 'Attempting to push image to Docker Hub...'
+                        withCredentials([usernamePassword(credentialsId: env.DOCKER_REGISTRY_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                            sh "echo \${DOCKER_PASS} | docker login -u \${DOCKER_USER} --password-stdin"
+                            sh "docker tag ${env.DOCKER_IMAGE}:${env.DOCKER_TAG} ${env.DOCKER_REGISTRY_USER}/${env.DOCKER_IMAGE}:${env.DOCKER_TAG}"
+                            sh "docker tag ${env.DOCKER_IMAGE}:${env.DOCKER_LATEST_TAG} ${env.DOCKER_REGISTRY_USER}/${env.DOCKER_IMAGE}:${env.DOCKER_LATEST_TAG}"
+                            sh "docker push ${env.DOCKER_REGISTRY_USER}/${env.DOCKER_IMAGE}:${env.DOCKER_TAG}"
+                            sh "docker push ${env.DOCKER_REGISTRY_USER}/${env.DOCKER_IMAGE}:${env.DOCKER_LATEST_TAG}"
+                        }
                     } catch (Exception e) {
-                        echo "checkout scm failed or not available, falling back to explicit git clone..."
-                        git branch: env.GIT_BRANCH, url: env.GIT_URL
+                        echo "Push to Docker Hub skipped or credentials missing. Continuing local deployment..."
                     }
                 }
             }
         }
 
-        stage('Build') {
+        stage('Deploy to OVH VPS') {
             steps {
-                echo "Building local Docker image for development: ${env.DOCKER_IMAGE}:${env.DOCKER_TAG} and rolling ${env.DOCKER_IMAGE}:${env.DOCKER_LATEST_TAG}"
-                sh "docker build --target runner -t ${env.DOCKER_IMAGE}:${env.DOCKER_TAG} -t ${env.DOCKER_IMAGE}:${env.DOCKER_LATEST_TAG} ."
-            }
-        }
-
-        stage('Push') {
-            steps {
-                script {
-                    echo 'Logging into Docker Hub and pushing image tags...'
-                    withCredentials([usernamePassword(credentialsId: env.DOCKER_REGISTRY_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        sh "echo \${DOCKER_PASS} | docker login -u \${DOCKER_USER} --password-stdin"
-                        sh "docker tag ${env.DOCKER_IMAGE}:${env.DOCKER_TAG} ${env.DOCKER_REGISTRY_USER}/${env.DOCKER_IMAGE}:${env.DOCKER_TAG}"
-                        sh "docker tag ${env.DOCKER_IMAGE}:${env.DOCKER_LATEST_TAG} ${env.DOCKER_REGISTRY_USER}/${env.DOCKER_IMAGE}:${env.DOCKER_LATEST_TAG}"
-                        sh "docker push ${env.DOCKER_REGISTRY_USER}/${env.DOCKER_IMAGE}:${env.DOCKER_TAG}"
-                        sh "docker push ${env.DOCKER_REGISTRY_USER}/${env.DOCKER_IMAGE}:${env.DOCKER_LATEST_TAG}"
-                    }
-                }
-            }
-        }
-
-        stage('Run') {
-            steps {
-                echo 'Deploying locally using Docker Compose...'
+                echo 'Deploying application locally on OVH VPS using Docker Compose...'
                 sh 'touch .env'
                 sh 'docker compose down --remove-orphans'
-                sh 'docker compose up -d'
-                echo 'Application successfully deployed and running!'
+                sh 'docker compose up -d --build'
+                echo 'Application successfully deployed and running on OVH VPS!'
             }
         }
     }
 
     post {
         always {
-            echo 'Cleaning up build workspace...'
+            echo 'Cleaning up workspace...'
             cleanWs()
         }
         success {
-            echo 'Dev Pipeline completed successfully!'
+            echo "PR / Build #${env.BUILD_NUMBER} successfully built and deployed to OVH VPS!"
         }
         failure {
-            echo 'Dev Pipeline execution failed. Please check build logs.'
+            echo "Pipeline failed for PR / Build #${env.BUILD_NUMBER}. Please check Jenkins console output."
         }
     }
 }
+

@@ -31,6 +31,7 @@ import Summary from "@/pages/production/summary";
 import StockReport from "@/pages/reports/stock";
 import ProductReport from "@/pages/reports/product";
 import MarkedByLog from "@/pages/reports/marked-by";
+import ReportsPage from "@/pages/reports/index";
 
 import MappingCode from "@/pages/mapping-code";
 import CustomerScan from "@/pages/customer-scan";
@@ -229,7 +230,8 @@ function Router() {
       <Route path="/mapping-code"><ProtectedRoute component={MappingCode} /></Route>
       <Route path="/customer-scan"><ProtectedRoute component={CustomerScan} /></Route>
       <Route path="/production/summary"><ProtectedRoute component={Summary} /></Route>
-      <Route path="/reports/stock"><ProtectedRoute component={StockReport} /></Route>
+      <Route path="/reports"><ProtectedRoute component={ReportsPage} /></Route>
+      <Route path="/reports/stock"><ProtectedRoute component={ReportsPage} /></Route>
       <Route path="/reports/product"><ProtectedRoute component={ProductReport} /></Route>
       <Route path="/reports/marked-by"><ProtectedRoute component={MarkedByLog} /></Route>
       <Route path="/settings"><ProtectedRoute component={Settings} /></Route>

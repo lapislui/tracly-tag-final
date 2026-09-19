@@ -8,7 +8,8 @@ import { useMappingCodeVisibility } from "@/hooks/use-mapping-code-visibility";
 import { 
   LayoutDashboard, Building2, Users, Package, MapPin, 
   Layers, QrCode, FileText, PackageCheck, BarChart3, ListOrdered, LogOut, Menu,
-  Link as LinkIcon, ScanBarcode, Settings, HelpCircle, Lock, Copy, User, Terminal, Eye, UserCheck
+  Link as LinkIcon, ScanBarcode, Settings, HelpCircle, Lock, Copy, User, Terminal, Eye, UserCheck,
+  Search, Bell, Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -99,7 +100,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     ...(!hideMappingCode ? [{ title: "Mapping Code", href: "/mapping-code", icon: LinkIcon, module: "mapping_code" }] : []),
     { title: "Customer Scan", href: "/customer-scan", icon: ScanBarcode, module: "customer_scan" },
     { title: "Summary", href: "/production/summary", icon: PackageCheck, module: "summary" },
-    { title: "Reports", href: "/reports/stock", icon: BarChart3, module: "reports" },
+    { title: "Reports", href: "/reports", icon: BarChart3, module: "reports" },
   ].filter(item => userModules.includes(item.module));
 
   const bottomNavigation = [
@@ -315,33 +316,84 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               </Sheet>
               <img src="/logo.png" alt="Logo" className="h-6 object-contain ml-1" />
             </div>
-            <div className="hidden md:flex items-center text-sm font-medium text-slate-500 dark:text-slate-400">
-              {user.companyName ? `Company: ${user.companyName}` : "Global Admin"}
-            </div>
-          </div>
-          <div className="flex items-center gap-4 ml-auto">
-            <ThemeToggle />
-            <div className="flex items-center gap-3 border-l pl-4 border-slate-200 dark:border-slate-800">
-              <Link href="/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
-                <div className="flex flex-col items-end">
-                  <span className="text-sm font-semibold leading-none text-midnight-navy dark:text-white">{user.username}</span>
-                  <Badge variant="outline" className="mt-1 text-[9px] uppercase h-4 px-1.5 border-safety-blue/30 text-safety-blue bg-safety-blue/5">{user.role === 'client_admin' ? 'manager' : user.role.replace('_', ' ')}</Badge>
+            {location.startsWith("/reports") ? (
+              <div className="flex items-center gap-3">
+                <span className="text-base font-bold text-slate-900 dark:text-white">Reports</span>
+                <span className="text-slate-300 dark:text-slate-700">|</span>
+                <div className="flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+                  <span className="text-slate-900 dark:text-white font-semibold cursor-pointer">Overview</span>
+                  <span className="hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">Deployments</span>
+                  <span className="hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">Health</span>
                 </div>
-                <Avatar className="h-8 w-8 border border-safety-blue/20">
-                  <AvatarFallback className="bg-safety-blue/10 text-safety-blue text-xs font-semibold">
-                    {user.username.substring(0,2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-              <Button variant="ghost" size="icon" onClick={handleLogout} className="ml-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <LogOut className="h-4 w-4" />
-                <span className="sr-only">Log out</span>
-              </Button>
+              </div>
+            ) : (
+              <div className="hidden md:flex items-center text-sm font-medium text-slate-500 dark:text-slate-400">
+                {user.companyName ? `Company: ${user.companyName}` : "Global Admin"}
+              </div>
+            )}
+          </div>
+
+          {location.startsWith("/reports") && (
+            <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 bg-slate-100/90 dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 w-64 lg:w-80 shadow-inner">
+              <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Search terminal..."
+                className="bg-transparent text-xs text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none w-full"
+              />
             </div>
+          )}
+
+          <div className="flex items-center gap-3 ml-auto">
+            {location.startsWith("/reports") ? (
+              <>
+                <button 
+                  onClick={() => toast({ title: "Notifications", description: "Terminal alerts & GS1 scan exceptions" })}
+                  className="relative p-1.5 text-slate-500 hover:text-slate-700 dark:text-slate-400 rounded-lg cursor-pointer"
+                  title="Terminal Alerts"
+                >
+                  <Bell className="h-4 w-4" />
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-blue-600 rounded-full"></span>
+                </button>
+                <Link href="/companies/new">
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-3 py-1.5 h-8 rounded-lg flex items-center gap-1.5 shadow-sm shadow-blue-500/20 cursor-pointer">
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>Create Tenant</span>
+                  </Button>
+                </Link>
+                <img
+                  src="/user-avatar.png"
+                  alt="User Avatar"
+                  className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 object-cover shadow-sm"
+                />
+                <ThemeToggle />
+              </>
+            ) : (
+              <>
+                <ThemeToggle />
+                <div className="flex items-center gap-3 border-l pl-4 border-slate-200 dark:border-slate-800">
+                  <Link href="/profile" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
+                    <div className="flex flex-col items-end">
+                      <span className="text-sm font-semibold leading-none text-midnight-navy dark:text-white">{user.username}</span>
+                      <Badge variant="outline" className="mt-1 text-[9px] uppercase h-4 px-1.5 border-safety-blue/30 text-safety-blue bg-safety-blue/5">{user.role === 'client_admin' ? 'manager' : user.role.replace('_', ' ')}</Badge>
+                    </div>
+                    <Avatar className="h-8 w-8 border border-safety-blue/20">
+                      <AvatarFallback className="bg-safety-blue/10 text-safety-blue text-xs font-semibold">
+                        {user.username.substring(0,2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Link>
+                  <Button variant="ghost" size="icon" onClick={handleLogout} className="ml-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                    <LogOut className="h-4 w-4" />
+                    <span className="sr-only">Log out</span>
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </header>
         <div className="flex-1 p-6 md:p-8 overflow-y-auto">
-          <div className="mx-auto max-w-6xl">
+          <div className={cn("mx-auto", location.startsWith("/reports") ? "max-w-7xl" : "max-w-6xl")}>
             {children}
           </div>
         </div>

@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { 
   ChevronRight, Search, Filter, Download, Eye, ChevronLeft, QrCode, Maximize2, Loader2,
   Lock, EyeOff, ShieldCheck, Fingerprint, Smartphone, CheckCircle2, AlertCircle, ArrowRight, Printer, Check,
-  Camera, Volume2, RefreshCw, Wifi, Keyboard, ClipboardList, Info, Clock, CheckCircle
+  Camera, Volume2, RefreshCw, Wifi, Keyboard, ClipboardList, Info, Clock, CheckCircle, ChevronDown, SlidersHorizontal
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,8 @@ export default function MappingCode() {
   const [filterProductId, setFilterProductId] = useState<string>("all");
   const [filterBatchId, setFilterBatchId] = useState<string>("all");
   const [downloadingBatch, setDownloadingBatch] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   // Status Details Dialog state (Mapped vs Pending popup)
   const [detailBatchId, setDetailBatchId] = useState<number | null>(null);
@@ -357,6 +359,21 @@ export default function MappingCode() {
     }
   };
 
+  const formatGenerateDate = (dateStr?: string) => {
+    if (!dateStr) return "Oct 12, 2023";
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "Oct 12, 2023";
+      return d.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+      });
+    } catch {
+      return "Oct 12, 2023";
+    }
+  };
+
   // Filtered batch report list
   const filteredReport = reportData.filter((row) => {
     if (filterProductId !== "all" && row.productId?.toString() !== filterProductId) return false;
@@ -371,140 +388,218 @@ export default function MappingCode() {
     return true;
   });
 
+  const totalPages = Math.ceil(filteredReport.length / itemsPerPage) || 1;
+  const paginatedReport = filteredReport.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const handleExportXLSX = () => {
+    if (filteredReport.length === 0) {
+      toast.error("No data available to export");
+      return;
+    }
+    const headers = ["Product Name", "Batch Name", "Generate Date", "Total QR", "Mapped QR", "Remaining QR", "Efficiency"];
+    const rows = filteredReport.map(row => {
+      const efficiency = row.total ? Math.round((row.mapped / row.total) * 100) : 0;
+      return [
+        `"${row.productName || ''}"`,
+        `"${row.batchNumber || ''}"`,
+        `"${formatGenerateDate(row.createdAt)}"`,
+        `"${row.total || 0}"`,
+        `"${row.mapped || 0}"`,
+        `"${row.unmapped || 0}"`,
+        `"${efficiency}%"`
+      ].join(",");
+    });
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `mapping_code_report_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Mapping code report exported successfully");
+  };
+
   return (
     <div className="space-y-6 font-sans text-midnight-navy">
       {/* Page Header */}
       <div className="flex items-end justify-between mb-8">
         <div>
           <nav className="flex items-center gap-2 text-outline font-bold text-[10px] mb-2 uppercase tracking-widest text-[#737686]">
-            <span>Industrial Panel</span>
+            <span>INDUSTRIAL PANEL</span>
             <ChevronRight className="h-3 w-3" />
-            <span className="text-safety-blue">Mapping Code</span>
+            <span className="text-safety-blue">MAPPING CODE</span>
           </nav>
           <h2 className="text-3xl font-bold tracking-tight">Mapping Code Module</h2>
-          <p className="text-sm text-on-surface-variant mt-1">Manage and audit QR code mapping across production batches.</p>
+          <p className="text-sm text-slate-500 mt-1">Manage and audit QR code mapping across production batches.</p>
         </div>
       </div>
 
-      {/* Filter Container */}
-      <div className="bg-white border border-[#E2E8F0] rounded-lg p-4 flex flex-wrap items-center gap-4 shadow-sm">
+      {/* Filter Container matching design */}
+      <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 flex flex-wrap items-end gap-4 shadow-sm">
         <div className="flex-1 min-w-[240px]">
-          <label className="font-bold text-[10px] text-[#737686] mb-1 block uppercase">Search Products/Batches</label>
+          <label className="font-bold text-[10px] text-[#737686] mb-1.5 block uppercase tracking-wider">
+            SEARCH PRODUCTS/BATCHES
+          </label>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#737686] h-4 w-4" />
             <Input
-              className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg py-2 pl-10 pr-4 text-sm focus:border-safety-blue outline-none transition-all h-10"
+              className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg py-2 pl-9 pr-4 text-sm text-slate-800 placeholder:text-slate-400 focus:border-safety-blue focus:bg-white outline-none transition-all h-10 shadow-none"
               placeholder="Filter by name or ID..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
             />
           </div>
         </div>
-        <div className="flex-1 min-w-[200px]">
-          <label className="font-bold text-[10px] text-[#737686] mb-1 block uppercase">Product Name</label>
-          <select 
-            value={filterProductId}
-            onChange={(e) => {
-              setFilterProductId(e.target.value);
-              setFilterBatchId("all");
-            }}
-            className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg py-2 px-3 text-sm focus:border-safety-blue outline-none transition-all h-10"
-          >
-            <option value="all">All Products</option>
-            {products.map(p => (
-              <option key={p.id} value={p.id.toString()}>{p.name}</option>
-            ))}
-          </select>
+
+        <div className="w-[200px]">
+          <label className="font-bold text-[10px] text-[#737686] mb-1.5 block uppercase tracking-wider">
+            PRODUCT NAME
+          </label>
+          <div className="relative">
+            <select 
+              value={filterProductId}
+              onChange={(e) => {
+                setFilterProductId(e.target.value);
+                setFilterBatchId("all");
+                setCurrentPage(1);
+              }}
+              className="w-full appearance-none bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg py-2 pl-3 pr-8 text-sm text-slate-800 focus:border-safety-blue focus:bg-white outline-none transition-all h-10 cursor-pointer"
+            >
+              <option value="all">All Products</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id.toString()}>{p.name}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#737686] h-4 w-4 pointer-events-none" />
+          </div>
         </div>
-        <div className="flex-1 min-w-[200px]">
-          <label className="font-bold text-[10px] text-[#737686] mb-1 block uppercase">Batch Name</label>
-          <select 
-            value={filterBatchId}
-            onChange={(e) => setFilterBatchId(e.target.value)}
-            className="w-full bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg py-2 px-3 text-sm focus:border-safety-blue outline-none transition-all h-10"
-            disabled={filterProductId === "all"}
-          >
-            <option value="all">All Batches</option>
-            {batches
-              .filter(b => b.productId?.toString() === filterProductId)
-              .map(b => (
-                <option key={b.id} value={b.id.toString()}>{b.batchNumber}</option>
-              ))
-            }
-          </select>
+
+        <div className="w-[200px]">
+          <label className="font-bold text-[10px] text-[#737686] mb-1.5 block uppercase tracking-wider">
+            BATCH NAME
+          </label>
+          <div className="relative">
+            <select 
+              value={filterBatchId}
+              onChange={(e) => {
+                setFilterBatchId(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full appearance-none bg-[#F8FAFC] border border-[#E2E8F0] rounded-lg py-2 pl-3 pr-8 text-sm text-slate-800 focus:border-safety-blue focus:bg-white outline-none transition-all h-10 cursor-pointer"
+            >
+              <option value="all">All Batches</option>
+              {batches
+                .filter(b => filterProductId === "all" || b.productId?.toString() === filterProductId)
+                .map(b => (
+                  <option key={b.id} value={b.id.toString()}>{b.batchNumber}</option>
+                ))
+              }
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[#737686] h-4 w-4 pointer-events-none" />
+          </div>
         </div>
-        <div className="flex items-end h-full mt-5">
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              setSearchTerm("");
-              setFilterProductId("all");
-              setFilterBatchId("all");
-            }}
-            className="h-10 px-3 border border-[#E2E8F0] rounded-lg hover:bg-slate-50"
-          >
-            <RefreshCw className="h-4 w-4 text-[#434655]" />
-          </Button>
-        </div>
-        <div className="flex items-end h-full ml-auto mt-5">
-          <Button variant="outline" className="flex items-center gap-2 h-10 px-4 border border-[#E2E8F0] rounded-lg font-bold text-midnight-navy hover:bg-slate-50">
-            <Download className="h-4 w-4" />
-            Export XLSX
-          </Button>
-        </div>
+
+        <Button 
+          variant="outline" 
+          onClick={() => {
+            setSearchTerm("");
+            setFilterProductId("all");
+            setFilterBatchId("all");
+            setCurrentPage(1);
+          }}
+          title="Reset Filters"
+          className="h-10 w-10 p-0 border border-[#E2E8F0] rounded-lg hover:bg-slate-50 flex items-center justify-center shrink-0 cursor-pointer"
+        >
+          <SlidersHorizontal className="h-4 w-4 text-[#434655]" />
+        </Button>
+
+        <Button 
+          variant="outline" 
+          onClick={handleExportXLSX}
+          className="flex items-center gap-2 h-10 px-4 border border-[#E2E8F0] rounded-lg font-bold text-midnight-navy hover:bg-slate-50 ml-auto shrink-0 cursor-pointer"
+        >
+          <Download className="h-4 w-4" />
+          Export XLSX
+        </Button>
       </div>
 
       {/* Table Container */}
-      <div className="bg-white border border-[#E2E8F0] rounded-lg shadow-sm overflow-hidden">
+      <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-[#E2E8F0]">
-                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap">Product Name</th>
-                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap">Batch Name</th>
-                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-right">Total QR</th>
-                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-right">Mapped QR</th>
-                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-right">Remaining QR</th>
-                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-center">Efficiency</th>
-                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-right">Actions</th>
-                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-center">Mapping Status</th>
+              <tr className="border-b border-[#E2E8F0]">
+                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap">PRODUCT NAME</th>
+                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap">BATCH NAME</th>
+                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap">GENERATE DATE</th>
+                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-right">TOTAL QR</th>
+                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-right">MAPPED QR</th>
+                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-right">REMAINING QR</th>
+                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-center">EFFICIENCY</th>
+                <th className="px-6 py-4 font-bold text-[11px] text-[#737686] uppercase tracking-wider whitespace-nowrap text-right">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#E2E8F0]">
               {isLoadingReport ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-8">
+                  <td colSpan={8} className="text-center py-12">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto text-safety-blue" />
                   </td>
                 </tr>
-              ) : filteredReport.length === 0 ? (
+              ) : paginatedReport.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="text-center py-12 text-slate-500 text-sm">
                     No active batch serialization data found matching criteria.
                   </td>
                 </tr>
               ) : (
-                filteredReport.map((row) => {
+                paginatedReport.map((row) => {
                   const efficiency = row.total ? Math.round((row.mapped / row.total) * 100) : 0;
-                  const isFinished = efficiency === 100;
+                  const isFull = efficiency === 100;
                   return (
                     <tr key={row.batchId} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-6 py-4 text-sm font-semibold text-midnight-navy">{row.productName}</td>
-                      <td className="px-6 py-4 text-sm text-slate-600 font-mono">{row.batchNumber}</td>
-                      <td className="px-6 py-4 text-sm text-right text-slate-600">{Number(row.total).toLocaleString()}</td>
-                      <td className="px-6 py-4 text-sm text-right text-slate-600">{Number(row.mapped).toLocaleString()}</td>
-                      <td className="px-6 py-4 text-sm text-right text-slate-600">{Number(row.unmapped).toLocaleString()}</td>
-                      <td className="px-6 py-4 text-sm text-center">
-                        <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${isFinished ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {efficiency}%
-                        </span>
+                      <td className="px-6 py-4.5 text-sm font-bold text-slate-900 leading-tight">
+                        {row.productName}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="h-8 w-8 text-slate-600 hover:text-safety-blue hover:border-safety-blue transition-colors cursor-pointer"
+                      <td className="px-6 py-4.5 text-sm font-normal text-slate-800">
+                        {row.batchNumber}
+                      </td>
+                      <td className="px-6 py-4.5 text-sm text-slate-600 whitespace-nowrap">
+                        {formatGenerateDate(row.createdAt)}
+                      </td>
+                      <td className="px-6 py-4.5 text-sm text-right font-medium text-slate-900">
+                        {Number(row.total).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4.5 text-sm text-right font-bold text-emerald-600">
+                        {Number(row.mapped).toLocaleString()}
+                      </td>
+                      <td className={`px-6 py-4.5 text-sm text-right font-bold ${row.unmapped > 0 ? 'text-rose-500' : 'text-slate-900'}`}>
+                        {Number(row.unmapped).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4.5 text-center">
+                        <div className="w-14 h-1.5 bg-slate-200/80 rounded-full overflow-hidden mx-auto flex">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-300 ${
+                              isFull 
+                                ? 'bg-emerald-500' 
+                                : efficiency >= 50 
+                                  ? 'bg-amber-500' 
+                                  : 'bg-safety-blue'
+                            }`}
+                            style={{ width: `${Math.max(efficiency, efficiency > 0 ? 10 : 0)}%` }}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-6 py-4.5 text-right">
+                        <div className="flex justify-end items-center gap-1.5">
+                          <button 
+                            type="button"
+                            className="p-1.5 text-slate-400 hover:text-safety-blue transition-colors cursor-pointer rounded-lg hover:bg-slate-100"
                             title="Start scan mapping process"
                             onClick={() => {
                               setSelectedRow({
@@ -519,20 +614,7 @@ export default function MappingCode() {
                             }}
                           >
                             <Eye className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 text-center">
-                        <div className="flex justify-center">
-                          <Button 
-                            variant="ghost" 
-                            className="flex items-center gap-1.5 h-8 px-3 text-xs font-bold text-safety-blue hover:bg-slate-100 border border-slate-200 rounded-lg transition-all cursor-pointer"
-                            onClick={() => handleViewDetails(row.batchId, row.batchNumber)}
-                          >
-                            <ClipboardList className="h-3.5 w-3.5" />
-                            View Status
-                          </Button>
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -544,17 +626,57 @@ export default function MappingCode() {
         </div>
 
         {/* Pagination Footer */}
-        <div className="px-6 py-4 bg-[#F8FAFC] border-t border-[#E2E8F0] flex items-center justify-between">
-          <span className="text-sm text-[#434655]">Showing <span className="font-semibold text-midnight-navy">1 to {filteredReport.length}</span> of <span className="font-semibold text-midnight-navy">{filteredReport.length}</span> batches</span>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-8 w-8 disabled:opacity-30" disabled>
-              <ChevronLeft className="h-4 w-4" />
+        <div className="px-6 py-4 bg-white border-t border-[#E2E8F0] flex items-center justify-between">
+          <span className="text-sm text-[#737686]">
+            Showing <span className="font-semibold text-slate-800">{filteredReport.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredReport.length)}</span> of <span className="font-semibold text-slate-800">{filteredReport.length}</span> batches
+          </span>
+          <div className="flex items-center gap-1.5">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+              disabled={currentPage === 1}
+              className="h-8 w-8 rounded-lg border border-[#E2E8F0] disabled:opacity-40 hover:bg-slate-50 cursor-pointer"
+            >
+              <ChevronLeft className="h-4 w-4 text-slate-600" />
             </Button>
-            <div className="flex items-center gap-1">
-              <Button className="w-8 h-8 p-0 bg-safety-blue hover:bg-safety-blue/90 text-white font-bold text-sm">1</Button>
-            </div>
-            <Button variant="outline" size="icon" className="h-8 w-8" disabled>
-              <ChevronRight className="h-4 w-4" />
+            
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+              .reduce<(number | string)[]>((acc, page, idx, arr) => {
+                if (idx > 0 && (page as number) - (arr[idx - 1] as number) > 1) {
+                  acc.push("...");
+                }
+                acc.push(page);
+                return acc;
+              }, [])
+              .map((item, idx) => (
+                item === "..." ? (
+                  <span key={`dots-${idx}`} className="px-1 text-xs text-slate-400 font-semibold">...</span>
+                ) : (
+                  <Button
+                    key={item}
+                    onClick={() => setCurrentPage(Number(item))}
+                    className={`w-8 h-8 p-0 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      currentPage === item 
+                        ? "bg-safety-blue hover:bg-safety-blue/90 text-white shadow-sm" 
+                        : "bg-transparent hover:bg-slate-100 text-slate-700 border border-transparent"
+                    }`}
+                  >
+                    {item}
+                  </Button>
+                )
+              ))
+            }
+
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="h-8 w-8 rounded-lg border border-[#E2E8F0] disabled:opacity-40 hover:bg-slate-50 cursor-pointer"
+            >
+              <ChevronRight className="h-4 w-4 text-slate-600" />
             </Button>
           </div>
         </div>

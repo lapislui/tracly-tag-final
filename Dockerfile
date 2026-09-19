@@ -38,19 +38,22 @@ RUN pnpm run build
 FROM base AS runner
 WORKDIR /app
 
-# Install supervisor
-RUN apk add --no-cache supervisor && \
-    mkdir -p /var/log/supervisor
+# Install supervisor, nginx, certbot, and openssl
+RUN apk add --no-cache supervisor nginx certbot certbot-nginx openssl && \
+    mkdir -p /var/log/supervisor /run/nginx /etc/letsencrypt
 
 # Copy built code and dependencies from builder stage
 COPY --from=builder /app /app
 
-# Copy supervisor configuration
+# Copy supervisor, nginx configurations, and nginx entrypoint script
 COPY supervisord.conf /etc/supervisord.conf
+COPY nginx-container.conf /etc/nginx/http.d/default.conf
+COPY entrypoint-nginx.sh /app/entrypoint-nginx.sh
+RUN chmod +x /app/entrypoint-nginx.sh
 
-# Set production environment and expose ports
+# Set production environment and expose HTTP and HTTPS ports
 ENV NODE_ENV=production
-EXPOSE 3000 5173
+EXPOSE 80 443
 
 # Start supervisor to run both services
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

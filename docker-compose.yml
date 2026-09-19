@@ -4,8 +4,8 @@ services:
       context: .
       target: runner
     ports:
-      - "3000:3000"
-      - "5173:5173"
+      - "80:80"
+      - "443:443"
     env_file:
       - .env
     environment:
@@ -16,4 +16,6 @@ services:
       - ./lib/db:/app/lib/db
       # Mount the uploads directory to persist uploaded assets
       - ./artifacts/api-server/uploads:/app/artifacts/api-server/uploads
+      # Mount Let's Encrypt SSL certificates directory on host
+      - ./letsencrypt:/etc/letsencrypt
     restart: always

@@ -62978,6 +62978,14 @@ async function seedDatabase(dbInstance, seedData) {
     }))
   ];
   await dbInstance.insert(customerScansTable).values(customerScans);
+  await dbInstance.insert(systemConfigsTable).values([
+    { key: "hideMappingCode", value: "true" },
+    { key: "datamatrixUrlMode", value: "true" },
+    { key: "hidePackagingHierarchy", value: "true" },
+    { key: "hidePackagingLevel", value: "true" },
+    { key: "enableOtpSystem", value: "false" },
+    { key: "enableCustomerScanOtp", value: "true" }
+  ]).onConflictDoNothing();
 }
 async function resetAndSeedDatabase(dbInstance, seedData) {
   await dbInstance.delete(customerScansTable);
@@ -63003,7 +63011,9 @@ var readConfig = async () => {
   let hideMappingCode = true;
   let datamatrixUrlMode = false;
   let hidePackagingHierarchy = true;
+  let hidePackagingLevel = true;
   let enableOtpSystem = true;
+  let enableCustomerScanOtp = true;
   try {
     const rows = await db.select().from(systemConfigsTable);
     const mapCodeRow = rows.find((r) => r.key === "hideMappingCode");
@@ -63018,13 +63028,21 @@ var readConfig = async () => {
     if (phRow) {
       hidePackagingHierarchy = phRow.value === "true";
     }
+    const plRow = rows.find((r) => r.key === "hidePackagingLevel");
+    if (plRow) {
+      hidePackagingLevel = plRow.value === "true";
+    }
     const otpRow = rows.find((r) => r.key === "enableOtpSystem");
     if (otpRow) {
       enableOtpSystem = otpRow.value !== "false";
     }
+    const cOtpRow = rows.find((r) => r.key === "enableCustomerScanOtp");
+    if (cOtpRow) {
+      enableCustomerScanOtp = cOtpRow.value !== "false";
+    }
   } catch (err) {
   }
-  return { hideMappingCode, datamatrixUrlMode, hidePackagingHierarchy, enableOtpSystem };
+  return { hideMappingCode, datamatrixUrlMode, hidePackagingHierarchy, hidePackagingLevel, enableOtpSystem, enableCustomerScanOtp };
 };
 var writeConfig = async (config2) => {
   try {
@@ -63055,6 +63073,15 @@ var writeConfig = async (config2) => {
         set: { value: String(config2.hidePackagingHierarchy) }
       });
     }
+    if (config2.hidePackagingLevel !== void 0) {
+      await db.insert(systemConfigsTable).values({
+        key: "hidePackagingLevel",
+        value: String(config2.hidePackagingLevel)
+      }).onConflictDoUpdate({
+        target: systemConfigsTable.key,
+        set: { value: String(config2.hidePackagingLevel) }
+      });
+    }
     if (config2.enableOtpSystem !== void 0) {
       await db.insert(systemConfigsTable).values({
         key: "enableOtpSystem",
@@ -63062,6 +63089,15 @@ var writeConfig = async (config2) => {
       }).onConflictDoUpdate({
         target: systemConfigsTable.key,
         set: { value: String(config2.enableOtpSystem) }
+      });
+    }
+    if (config2.enableCustomerScanOtp !== void 0) {
+      await db.insert(systemConfigsTable).values({
+        key: "enableCustomerScanOtp",
+        value: String(config2.enableCustomerScanOtp)
+      }).onConflictDoUpdate({
+        target: systemConfigsTable.key,
+        set: { value: String(config2.enableCustomerScanOtp) }
       });
     }
   } catch (err) {
